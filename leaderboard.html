@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>UrjaRise Leaderboard</title>
+    <link rel="stylesheet" href="leaderboard.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+</head>
+<body>
+
+    <div class="app-container">
+        <header class="main-header">
+            <h2><i class="fas fa-trophy"></i> Global Leaderboard</h2>
+        </header>
+
+        <div class="podium-container" id="podiumContainer" style="display: none;"></div>
+
+        <div class="rankings-list" id="rankingsList">
+            <div class="shimmer-loader-box" id="shimmerLoader">
+                <div class="shimmer-row shimmer"></div>
+                <div class="shimmer-row shimmer"></div>
+                <div class="shimmer-row shimmer"></div>
+                <div class="shimmer-row shimmer"></div>
+                <div class="shimmer-row shimmer"></div>
+            </div>
+        </div>
+
+        <nav class="bottom-nav">
+
+    <div class="nav-item active">
+        <i class="fas fa-trophy"></i>
+        <span>LEADERBOARD</span>
+    </div>
+
+    <a href="feed.html" class="nav-item">
+        <i class="fas fa-compass"></i>
+        <span>FEED</span>
+    </a>
+
+    <a href="streak.html" class="nav-item">
+        <i class="fas fa-fire"></i>
+        <span>STREAK</span>
+    </a>
+
+    <div class="nav-item plus-nav">
+        <a href="feed.html" class="plus-circle">
+            <i class="fas fa-plus"></i>
+        </a>
+    </div>
+
+    <a href="inventory.html" class="nav-item">
+        <i class="fas fa-id-card"></i>
+        <span>INVENTORY</span>
+    </a>
+
+    <a href="profile.html" class="nav-item">
+        <i class="far fa-user"></i>
+        <span>PROFILE</span>
+    </a>
+
+</nav>
+    </div>
+
+    <script type="module" src="leaderboard.js"></script>
+</body>
+</html>

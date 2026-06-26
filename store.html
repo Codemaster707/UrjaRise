@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Urja Store — Pack Vault</title>
+    <link rel="stylesheet" href="store.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+</head>
+<body>
+    <div class="store-layout">
+        <header class="store-header">
+            <div class="header-left">
+                <button id="backBtn" class="icon-btn" title="Back to Feed"><i class="fas fa-arrow-left"></i></button>
+                <h1>Urja Store</h1>
+            </div>
+            <div class="header-right">
+                <div class="currency-display" title="Urja Points (Earned from productivity)">
+                    <span class="currency-icon icon-up">⚡</span>
+                    <span id="userPointsBalance" class="currency-amount">0</span>
+                </div>
+                <div class="currency-display" title="Card Dust (From duplicate cards)">
+                    <span class="currency-icon icon-dust">✨</span>
+                    <span id="userDustBalance" class="currency-amount">0</span>
+                </div>
+                <div class="user-profile-mini">
+                    <img id="userAvatar" src="https://via.placeholder.com/40" alt="Avatar">
+                </div>
+            </div>
+        </header>
+
+        <section class="store-section daily-deals-section">
+            <div class="section-title-wrap">
+                <h2 class="section-title"><i class="fas fa-calendar-day"></i> Today's Featured Deal</h2>
+                <div class="countdown-timer" id="dealCountdown"><i class="far fa-clock"></i> Resets in: --h --m</div>
+            </div>
+            <div class="daily-deal-wrapper" id="dailyDealContainer">
+                <div class="loading-placeholder">Loading rotation matrices...</div>
+            </div>
+        </section>
+
+        <section class="store-section packs-section">
+            <h2 class="section-title"><i class="fas fa-box-open"></i> Collectible Card Packs</h2>
+            <div id="packsGrid" class="packs-grid">
+                </div>
+        </section>
+
+        <section class="store-section rarity-guide-section">
+            <h2 class="section-title"><i class="fas fa-info-circle"></i> Codex & Drop Probability Guide</h2>
+            <div class="rarity-guide-grid" id="rarityGuideContainer">
+                </div>
+        </section>
+
+        <section class="store-section future-features-section">
+            <div class="placeholder-grid">
+                <div class="placeholder-card block-disabled">
+                    <div class="badge-locked">COMING SOON</div>
+                    <i class="fas fa-store-alt placeholder-icon"></i>
+                    <h3>P2P Marketplace</h3>
+                    <p>Auction, trade, or buy specific cards directly from other community collectors with your friends.</p>
+                </div>
+                <div class="placeholder-card block-disabled">
+                    <div class="badge-locked">EVENT SECURED</div>
+                    <i class="fas fa-calendar-star placeholder-icon"></i>
+                    <h3>Seasonal Event Packs</h3>
+                    <p>Exclusive items for Diwali, New Year, and Summer breaks. Includes animated variants and frame cosmetics.</p>
+                </div>
+            </div>
+        </section>
+    </div>
+
+    <div id="packOpeningOverlay" class="pack-opening-overlay" style="display: none;">
+        <div id="animationStage" class="animation-stage">
+            </div>
+    </div>
+
+    <script type="module" src="store.js"></script>
+</body>
+</html>

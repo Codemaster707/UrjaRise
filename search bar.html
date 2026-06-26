@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>UrjaRise - Search Profiles</title>
+    <link rel="stylesheet" href="search bar.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+</head>
+<body>
+
+    <div class="search-container">
+        <header class="search-header">
+            <a href="feed.html" class="back-btn">
+                <i class="fas fa-arrow-left"></i>
+            </a>
+            <div class="search-input-wrapper">
+                <i class="fas fa-search search-field-icon"></i>
+                <input type="text" id="searchInput" placeholder="Search by name or @username..." autocomplete=\"off\">
+                <button id="clearSearchBtn" style="display: none;"><i class="fas fa-times"></i></button>
+            </div>
+        </header>
+
+        <main class="results-container">
+            <div id="initialState" class="status-box">
+                <div class="welcome-badge">
+                    <i class="fas fa-users state-icon"></i>
+                    <p>Find other Urja members and track their progress metrics! 🚀</p>
+                </div>
+            </div>
+
+            <div id="noResultsState" class="status-box" style="display: none;">
+                <i class="fas fa-user-slash state-icon"></i>
+                <p>No members found matching that name or username.</p>
+            </div>
+
+            <div id="searchResultsList" class="results-wrapper"></div>
+        </main>
+
+        <div id="profileModal" class="modal-backdrop" style="display: none;">
+            <div class="modal-card">
+                <button id="closeModalBtn" class="close-modal-btn"><i class="fas fa-times"></i></button>
+                
+                <div class="modal-profile-header">
+                    <img id="modalUserPhoto" src="https://via.placeholder.com/100" alt="User Avatar">
+                    <h2 id="modalUserName">Urja Member</h2>
+                    <p id="modalUserHandle">@username</p>
+                </div>
+                
+                <div class="modal-profile-details" style="text-align: left; margin: 15px 0; padding: 0 10px;">
+                    <div style="margin-bottom: 12px;">
+                        <strong style="color: var(--accent); font-size: 0.85rem; text-transform: uppercase; display: block; margin-bottom: 3px;">Bio</strong>
+                        <p id="modalUserBio" style="font-size: 0.95rem; color: #333; margin: 0; line-height: 1.4; font-style: italic;">No bio added yet.</p>
+                    </div>
+                    <div>
+                        <strong style="color: var(--accent); font-size: 0.85rem; text-transform: uppercase; display: block; margin-bottom: 3px;">🎯 Main Goal</strong>
+                        <p id="modalUserGoal" style="font-size: 0.95rem; color: #333; margin: 0; line-height: 1.4; font-weight: 600;">No main goal set yet.</p>
+                    </div>
+                </div>
+                
+                <div class="modal-profile-stats">
+                    <div class="stat-badge">
+                        <span class="stat-label">⚡ Total Balance</span>
+                        <h3 id="modalUserPoints">0 Points</h3>
+                    </div>
+                </div>
+
+                <div class="modal-profile-footer" style="margin-top: 20px; padding: 0 10px;">
+                    <button id="modalGrowthFriendBtn" class="growth-friend-btn" style="width: 100%; padding: 12px; font-weight: 700; border-radius: 12px; border: none; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 8px; transition: all 0.2s;">
+                        <i class="fas fa-user-plus"></i> Add Growth Friend
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script type="module" src="search bar.js"></script>
+</body>
+</html>

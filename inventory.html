@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Urja Card Inventory</title>
+    <link rel="stylesheet" href="inventory.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+</head>
+<body>
+    <div class="inventory-layout">
+        <header class="inventory-header">
+            <div class="header-left">
+                <button id="backBtn" class="icon-btn"><i class="fas fa-arrow-left"></i></button>
+                <h1>My Collection</h1>
+            </div>
+            <div class="header-right">
+    <button id="visitStoreBtn" class="primary-btn">
+        <i class="fas fa-store"></i> Visit Urja Store
+    </button>
+
+    <div class="user-profile-mini">
+        <img id="userAvatar" src="https://via.placeholder.com/40" alt="Avatar">
+    </div>
+</div>
+        </header>
+
+        <section class="stats-container">
+            <div class="stat-box">
+                <i class="fas fa-layer-group stat-icon"></i>
+                <div class="stat-details">
+                    <span class="stat-label">Total Cards Owned</span>
+                    <h2 id="totalCardsOwned">0</h2>
+                </div>
+            </div>
+            <div class="stat-box">
+                <i class="fas fa-gem stat-icon"></i>
+                <div class="stat-details">
+                    <span class="stat-label">Unique Cards</span>
+                    <h2 id="uniqueCardsOwned">0</h2>
+                </div>
+            </div>
+            <div class="stat-box">
+                <i class="fas fa-chart-pie stat-icon"></i>
+                <div class="stat-details">
+                    <span class="stat-label">Collection Progress</span>
+                    <h2 id="collectionProgress">0 / 22</h2>
+                </div>
+            </div>
+        </section>
+
+        <section class="controls-container">
+            <div class="search-bar">
+                <i class="fas fa-search"></i>
+                <input type="text" id="searchInput" placeholder="Search cards by name...">
+            </div>
+            
+            <div class="filter-sort-group">
+                <select id="filterSelect" class="control-dropdown">
+                    <option value="All">All Rarities</option>
+                    <option value="Common">Common</option>
+                    <option value="Uncommon">Uncommon</option>
+                    <option value="Rare">Rare</option>
+                    <option value="Epic">Epic</option>
+                    <option value="Legendary">Legendary</option>
+                    <option value="Mythical">Mythical</option>
+                </select>
+
+                <select id="sortSelect" class="control-dropdown">
+                    <option value="newest">Newest First</option>
+                    <option value="alphabetical">Alphabetical (A-Z)</option>
+                    <option value="rarity">Rarity (High to Low)</option>
+                    <option value="quantity">Quantity Owned</option>
+                </select>
+            </div>
+        </section>
+
+        <main class="grid-container">
+            <div id="loadingIndicator" class="loading-state">
+                <i class="fas fa-circle-notch fa-spin"></i> Loading your vault...
+            </div>
+            <div id="cardGrid" class="card-grid"></div>
+            
+            <div id="emptyState" class="empty-state" style="display: none;">
+                <div class="empty-icon">🎴</div>
+                <h3>No cards yet.</h3>
+                <p>Visit the Urja Store and open your first pack to start your collection.</p>
+                <button id="goToStoreBtn" class="primary-btn">Visit Urja Store</button>
+            </div>
+        </main>
+    </div>
+
+    <script type="module" src="inventory.js"></script>
+    <script>
+document.getElementById("visitStoreBtn").addEventListener("click", () => {
+    window.location.href = "store.html";
+});
+
+document.getElementById("goToStoreBtn").addEventListener("click", () => {
+    window.location.href = "store.html";
+});
+</script>
+</body>
+</html>

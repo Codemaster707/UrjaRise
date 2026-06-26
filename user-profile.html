@@ -1,0 +1,148 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>UrjaRise | Profile</title>
+    <link rel="stylesheet" href="user-profile.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+</head>
+<body>
+ 
+    <div class="app-container">
+ 
+        <header class="main-header" id="mainHeader">
+            <button class="back-btn" onclick="window.history.back()">
+                <i class="fas fa-arrow-left"></i>
+            </button>
+            <span class="header-username" id="headerHandleText">@username</span>
+            <div class="header-actions">
+                <button class="add-friend-header-btn" id="addFriendHeaderBtn" style="display:none;">
+                    <i class="fas fa-user-plus"></i>
+                </button>
+            </div>
+        </header>
+ 
+        <div class="profile-hero" id="profileHero">
+            <div class="hero-bg-blur" id="heroBgBlur"></div>
+            <div class="hero-content">
+                <div class="avatar-ring-wrapper">
+                    <div class="avatar-ring" id="avatarRing">
+                        <img id="profileAvatar" src="https://via.placeholder.com/100" alt="Profile">
+                    </div>
+                    <div class="online-badge" id="onlineBadge" style="display:none;"></div>
+                </div>
+ 
+                <div class="hero-info">
+                    <h1 class="display-name" id="displayNameEl">Loading...</h1>
+                    <div class="username-chat-row">
+                        <p class="username-handle" id="usernameEl">@username</p>
+                        <button class="inline-chat-btn" id="directChatBtn" title="Send a message" style="display:none;">
+                            <i class="fas fa-comment-alt"></i> Chat
+                        </button>
+                    </div>
+                    <p class="bio-text" id="bioEl"></p>
+                    <div class="goal-chip" id="goalEl" style="display:none;">
+                        <i class="fas fa-bullseye"></i>
+                        <span id="goalText"></span>
+                    </div>
+                </div>
+            </div>
+ 
+            <div class="stats-strip">
+                <div class="stat-cell">
+                    <span class="stat-val" id="statPoints">—</span>
+                    <span class="stat-label">⚡ Points</span>
+                </div>
+                <div class="stat-divider"></div>
+                <div class="stat-cell">
+                    <span class="stat-val" id="statRank">—</span>
+                    <span class="stat-label">🏆 Rank</span>
+                </div>
+                <div class="stat-divider"></div>
+                <div class="stat-cell">
+                    <span class="stat-val" id="statStreak">—</span>
+                    <span class="stat-label">🔥 Streak</span>
+                </div>
+                <div class="stat-divider"></div>
+                <div class="stat-cell">
+                    <span class="stat-val" id="statFriends">—</span>
+                    <span class="stat-label">👥 Friends</span>
+                </div>
+            </div>
+ 
+            <div class="hero-cta" id="heroCta" style="display:none;">
+                <button class="add-friend-btn" id="addFriendBtn">
+                    <i class="fas fa-user-plus"></i> Add Growth Friend
+                </button>
+            </div>
+        </div>
+ 
+        <div class="friends-section" id="friendsSection" style="display:none;">
+            <div class="section-header">
+                <h3><i class="fas fa-user-group"></i> Growth Friends</h3>
+                <span class="friends-badge" id="friendsBadge">0</span>
+            </div>
+            <div class="friends-scroll-row" id="friendsScrollRow">
+            </div>
+        </div>
+ 
+        <div class="posts-section">
+            <div class="section-header" style="padding: 0 16px; margin-bottom: 12px;">
+                <h3><i class="fas fa-layer-group"></i> Progress Posts</h3>
+                <span class="posts-count-badge" id="postsCountBadge">0</span>
+            </div>
+ 
+            <div id="postsContainer">
+                <div class="shimmer-post shimmer"></div>
+                <div class="shimmer-post shimmer"></div>
+                <div class="shimmer-post shimmer"></div>
+            </div>
+ 
+            <div id="emptyPostsMsg" style="display:none;" class="empty-posts-msg">
+                <div class="empty-icon">🚀</div>
+                <p>No progress logged yet.</p>
+                <span>This member hasn't posted anything.</span>
+            </div>
+        </div>
+ 
+       <nav class="bottom-nav">
+
+    <a href="leaderboard.html" class="nav-item">
+        <i class="fas fa-trophy"></i>
+        <span>LEADERBOARD</span>
+    </a>
+
+    <a href="feed.html" class="nav-item">
+        <i class="fas fa-compass"></i>
+        <span>FEED</span>
+    </a>
+
+    <a href="streak.html" class="nav-item">
+        <i class="fas fa-fire"></i>
+        <span>STREAK</span>
+    </a>
+
+    <div class="nav-item plus-nav">
+        <a href="feed.html" class="plus-circle">
+            <i class="fas fa-plus"></i>
+        </a>
+    </div>
+
+    <a href="inventory.html" class="nav-item">
+        <i class="fas fa-id-card"></i>
+        <span>INVENTORY</span>
+    </a>
+
+    <div class="nav-item active">
+        <i class="far fa-user"></i>
+        <span>PROFILE</span>
+    </div>
+
+</nav>
+ 
+    </div>
+ 
+    <script type="module" src="user-profile.js"></script>
+</body>
+</html>

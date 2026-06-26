@@ -1,0 +1,95 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>UrjaRise Streaks</title>
+    <link rel="stylesheet" href="streak.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+</head>
+<body>
+
+    <div class="app-container">
+        <header class="main-header">
+            <div class="user-avatar-small">
+                <img id="headerProfilePhoto" src="https://via.placeholder.com/40" alt="Profile">
+            </div>
+            <div class="header-center">
+                <h3>My Momentum 🔥</h3>
+                <p id="headerUsername">@username</p>
+            </div>
+            <div class="header-actions">
+                <a href="feed.html" class="header-icon-btn" title="Back to Feed">
+                    <i class="fas fa-arrow-left"></i>
+                </a>
+            </div>
+        </header>
+
+        <div class="personal-streak-card">
+            <div class="streak-flame-container">
+                <i class="fas fa-fire personal-flame"></i>
+                <h1 id="userCurrentStreak">0</h1>
+                <p>Days Streak</p>
+            </div>
+            <div class="streak-stats-grid">
+                <div class="stat-box">
+                    <span class="stat-label">Best Streak</span>
+                    <h4 id="userBestStreak">0</h4>
+                </div>
+                <div class="stat-box">
+                    <span class="stat-label">Total Logs</span>
+                    <h4 id="userTotalLogs">0</h4>
+                </div>
+            </div>
+        </div>
+
+        <section class="global-streaks-section">
+            <div class="section-title">
+                <h3>Community Streaks ⚡</h3>
+                <p>See who is keeping the fire burning</p>
+            </div>
+            
+            <div id="global-streaks-container">
+                <div class="shimmer-loader"></div>
+            </div>
+        </section>
+
+        <nav class="bottom-nav">
+
+    <a href="leaderboard.html" class="nav-item">
+        <i class="fas fa-trophy"></i>
+        <span>LEADERBOARD</span>
+    </a>
+
+    <a href="feed.html" class="nav-item">
+        <i class="fas fa-compass"></i>
+        <span>FEED</span>
+    </a>
+
+    <div class="nav-item active">
+        <i class="fas fa-fire"></i>
+        <span>STREAK</span>
+    </div>
+
+    <div class="nav-item plus-nav">
+        <a href="feed.html" class="plus-circle">
+            <i class="fas fa-plus"></i>
+        </a>
+    </div>
+
+    <a href="inventory.html" class="nav-item">
+        <i class="fas fa-id-card"></i>
+        <span>INVENTORY</span>
+    </a>
+
+    <a href="profile.html" class="nav-item">
+        <i class="far fa-user"></i>
+        <span>PROFILE</span>
+    </a>
+
+</nav>
+    </div>
+
+    <script type="module" src="streak.js"></script>
+</body>
+</html>

@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>UrjaRise | Edit Profile</title>
+    <link rel="stylesheet" href="profile.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+</head>
+<body>
+    <canvas id="particle-canvas"></canvas>
+
+    <div class="container">
+        <header>
+            <button class="back-btn" onclick="window.history.back()"><i class="fa-solid fa-arrow-left"></i></button>
+            <h2>Edit Profile</h2>
+            <button class="settings-btn"><i class="fa-solid fa-gear"></i></button>
+        </header>
+
+        <div class="profile-section">
+            <h1 class="brand-title">UrjaRise</h1>
+            <div class="avatar-wrapper">
+                <img id="profile-avatar" class="profile-avatar" src="" alt="Profile Picture">
+                <div class="default-avatar" id="default-avatar">
+                    <i class="fa-solid fa-user"></i>
+                </div>
+            </div>
+            <p class="change-photo-text">Google Profile Photo</p>
+        </div>
+
+        <main class="profile-card">
+            <div class="form-group">
+                <label>Username</label>
+                <div class="input-container">
+                    <i class="fa-solid fa-at icon-accent"></i>
+                    <input type="text" id="username-input" placeholder="Username">
+                </div>
+            </div>
+
+            <div class="form-group">
+                <label>Display Name</label>
+                <div class="input-container">
+                    <i class="fa-regular fa-face-smile icon-accent"></i>
+                    <input type="text" id="display-name-input" placeholder="Display Name">
+                </div>
+            </div>
+
+            <div class="form-group">
+                <label>Bio</label>
+                <div class="input-container textarea-container">
+                    <i class="fa-solid fa-feather-pointed icon-accent"></i>
+                    <textarea id="bio-input" maxlength="300" placeholder="Tell us about yourself champ"></textarea>
+                </div>
+                <div class="counter" id="bio-counter">0/300</div>
+            </div>
+
+            <div class="form-group">
+                <label>Main Goal</label>
+                <div class="input-container textarea-container"> 
+                    <i class="fa-solid fa-bullseye icon-accent"></i>
+                    <textarea id="goal-input" maxlength="250" placeholder="What's the big goal?"></textarea>
+                </div>
+                <div class="counter" id="goal-counter">0/250</div>
+            </div>
+
+            <button class="save-button">
+                <i class="fa-solid fa-floppy-disk"></i> Save Profile
+            </button>
+        </main>
+
+        <section class="stats-row">
+            <div class="stat-box">
+                <div class="stat-icon bg-orange"><i class="fa-solid fa-fire"></i></div>
+                <span class="stat-num" id="display-streak">0</span>
+                <span class="stat-label">Streaks</span>
+            </div>
+            <div class="stat-box">
+                <div class="stat-icon bg-red"><i class="fa-solid fa-file-lines"></i></div>
+                <span class="stat-num" id="display-posts">0</span>
+                <span class="stat-label">Posts</span>
+            </div>
+            <div class="stat-box">
+                <div class="stat-icon bg-purple"><i class="fa-solid fa-crown"></i></div>
+                <span class="stat-num" id="display-points">0</span>
+                <span class="stat-label">Points</span>
+            </div>
+        </section>
+
+        <nav class="bottom-nav">
+            <div class="nav-item"><i class="fa-solid fa-house"></i><span>Home</span></div>
+            <div class="nav-item"><i class="fa-solid fa-compass"></i><span>Feed</span></div>
+            <div class="nav-item"><i class="fa-solid fa-bolt"></i><span>Streaks</span></div>
+            <div class="nav-item active"><i class="fa-solid fa-user"></i><span>Profile</span></div>
+        </nav>
+    </div>
+
+    <script type="module" src="profile.js"></script>
+</body>
+</html>

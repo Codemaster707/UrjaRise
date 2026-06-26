@@ -1,0 +1,160 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>UrjaRise Feed</title>
+    <link rel="stylesheet" href="feed.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+</head>
+<body>
+
+    <div class="app-container">
+        <header class="main-header">
+            <div class="user-avatar-small">
+                <img id="headerProfilePhoto"
+                alt="Profile">
+            </div>
+            <div class="header-center">
+                <h3 id="greetingText">Loading...</h3>
+                <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
+                    <p id="headerUsername" style="margin: 0;">@username</p>
+                    <div id="viewFriendsTrigger" style="display: flex; align-items: center; gap: 4px; background: rgba(0, 176, 116, 0.1); color: #00b074; padding: 2px 8px; border-radius: 12px; font-size: 0.75rem; font-weight: 700; cursor: pointer;">
+                        <i class="fas fa-user-group"></i> <span id="headerFriendsCount">0</span> Growth Friends
+                    </div>
+                </div>
+                
+                <div class="urja-points-box">
+                    <span>⚡ Urja Points</span>
+                    <h4 id="headerUrjaPoints">0</h4>
+                </div>
+            </div>
+            
+            <div class="header-actions">
+                <a href="search bar.html" class="header-icon-btn" title="Search">
+                    <i class="fas fa-search"></i>
+                </a>
+
+                <div class="notification-wrapper">
+                    <button id="notificationBtn" class="header-icon-btn" title="Messages" style="position: relative;">
+                        <i class="fas fa-paper-plane"></i>
+                        <span id="notificationBadge" class="notification-badge hidden">0</span>
+                    </button>
+                    
+                    <div id="notificationPopup" class="notification-popup hidden">
+                        <div class="popup-arrow"></div>
+                        <div class="popup-header">
+                            <h4>Direct Messages</h4>
+                        </div>
+                        <div id="popupContainer" class="popup-container">
+                            <div class="popup-loading">Checking updates...</div>
+                        </div>
+                    </div>
+                </div>
+
+                <button id="logoutBtn" class="header-icon-btn logout-btn-small" title="Log Out">
+                    <i class="fas fa-sign-out-alt"></i>
+                </button>
+            </div>
+        </header>
+
+        <div class="filter-scroll">
+            <button class="filter-pill active" data-category="all">🚀 Everything</button>
+            <button class="filter-pill" data-category="study">📚 Study</button>
+            <button class="filter-pill" data-category="fitness">💪 Fitness</button>
+            <button class="filter-pill" data-category="coding">💻 Coding</button>
+            <button class="filter-pill" data-category="goals">🎯 Goals</button>
+            <button class="filter-pill" data-category="reading">📖 Reading</button>
+            <button class="filter-pill" data-category="creative">🎨 Creative</button>
+            <button class="filter-pill" data-category="mindfulness">🧘 Mindfulness</button>
+        </div>
+
+        <div id="feedPostsContainer">
+            <div class="shimmer-loader"></div>
+        </div>
+
+    <nav class="bottom-nav">
+
+    <a href="leaderboard.html" class="nav-item">
+        <i class="fas fa-trophy"></i>
+        <span>LEADERBOARD</span>
+    </a>
+
+    <div class="nav-item active">
+        <i class="fas fa-compass"></i>
+        <span>FEED</span>
+    </div>
+
+    <a href="streak.html" class="nav-item">
+        <i class="fas fa-fire"></i>
+        <span>STREAK</span>
+    </a>
+
+    <div class="nav-item plus-nav" id="openPostModalBtn">
+        <div class="plus-circle">
+            <i class="fas fa-plus"></i>
+        </div>
+    </div>
+    <a href="inventory.html" class="nav-item" style="color: inherit; text-decoration: none;">
+        <i class="fas fa-id-card"></i>
+        <span>INVENTORY</span>
+    </a>
+    <a href="profile.html" class="nav-item">
+        <i class="far fa-user"></i>
+        <span>PROFILE</span>
+    </a>
+
+</nav>
+
+    <div id="friendsDrawerOverlay" class="drawer-overlay" style="display: none;">
+        <div class="friends-drawer-card">
+            <div class="drawer-header">
+                <h4>Growth Connections</h4>
+                <button id="closeFriendsDrawerBtn" class="drawer-close-x">&times;</button>
+            </div>
+            
+            <div id="incomingRequestsSection" class="drawer-sub-section" style="display: none;">
+                <h5>Inbound Invites</h5>
+                <div id="incomingRequestsContainerList" class="drawer-items-stack"></div>
+            </div>
+            
+            <div class="drawer-sub-section">
+                <h5>My Friends</h5>
+                <div id="activeFriendsContainerList" class="drawer-items-stack"></div>
+            </div>
+        </div>
+    </div>
+
+    <div id="postModal" class="modal-overlay">
+        <div class="modal-card">
+            <div class="modal-header">
+                <h3>Log Progress</h3>
+                <button class="close-btn" id="closePostModal">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div class="input-group">
+                    <label>What did you accomplish today?</label>
+                    <textarea id="postDescription" rows="5" placeholder="Share your progress, achievement, or learning..." required></textarea>
+                </div>
+
+                <div class="input-group">
+                    <label>Category</label>
+                    <select id="postCategory" class="premium-select">
+                        <option value="study">📚 Study</option>
+                        <option value="fitness">💪 Fitness</option>
+                        <option value="coding">💻 Coding</option>
+                        <option value="goals">🎯 Goals</option>
+                        <option value="reading">📖 Reading</option>
+                        <option value="creative">🎨 Creative</option>
+                        <option value="mindfulness">🧘 Mindfulness</option>
+                    </select>
+                </div>
+                
+                <button id="submitPost" class="submit-post-btn">Post Progress</button>
+            </div>
+        </div>
+    </div>
+
+    <script type="module" src="feed.js"></script>
+</body>
+</html>

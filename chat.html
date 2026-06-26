@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Chat — UrjaRise</title>
+    <link rel="stylesheet" href="chat.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+</head>
+<body>
+    <div class="chat-container">
+        <header class="chat-header">
+            <button id="backBtn" class="icon-btn"><i class="fas fa-arrow-left"></i></button>
+            <div class="chat-user-info" id="chatUserInfo">
+                <img id="chatAvatar" src="https://via.placeholder.com/40" alt="Avatar">
+                <div>
+                    <h3 id="chatDisplayName">Loading...</h3>
+                    <span id="chatStatus" class="status-text">...</span>
+                </div>
+            </div>
+        </header>
+
+        <div class="messages-container" id="messagesContainer">
+            <div id="chatLoading" class="chat-loading">Loading messages...</div>
+        </div>
+
+       <form class="chat-input-area" id="chatForm">
+            <button type="button" id="growthCardBtn" class="card-btn" title="Send Growth Card">🎴</button>
+            <input type="text" id="messageInput" placeholder="Type an encouraging message..." autocomplete="off" required>
+            <button type="submit" id="sendBtn" class="send-btn"><i class="fas fa-paper-plane"></i></button>
+        </form>
+    </div>
+
+    <div id="notFriendPopup" class="not-friend-popup">
+        <div class="popup-content">
+            <i class="fas fa-exclamation-circle"></i>
+            <p>User must be your friend before sending Growth Cards.</p>
+            <button type="button" id="closePopupBtn"><i class="fas fa-times"></i></button>
+        </div>
+    </div>
+
+    <div id="cardSelectorModal" class="card-modal-overlay">
+        <div class="card-modal-content">
+            <div class="card-modal-header">
+                <div>
+                    <h2>Growth Card Inventory</h2>
+                    <p class="inventory-subtitle" id="inventorySubtitle">Select an item from your collection</p>
+                </div>
+                <button type="button" id="closeCardModalBtn" class="icon-btn"><i class="fas fa-times"></i></button>
+            </div>
+            <div id="cardGrid" class="card-grid"></div>
+        </div>
+    </div>
+
+    <div id="cardViewerModal" class="card-viewer-overlay">
+        <div class="card-viewer-content">
+            <button type="button" id="closeViewerBtn" class="viewer-close-btn"><i class="fas fa-times"></i></button>
+            <div id="enlargedCardContainer"></div>
+        </div>
+    </div>
+
+    <script type="module" src="chat.js"></script>
+</body>
+</html>

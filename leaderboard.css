@@ -1,0 +1,401 @@
+:root  {
+     --primary: #111111;
+     --accent: #FF5C00;
+     --bg-gradient: #ffffff;
+     --card-shadow: 0 10px 30px rgba(0, 0, 0, 0.04);
+     --glass: rgba(255, 255, 255, 0.85);
+     --gold: #FFD700;
+     --silver: #C0C0C0;
+     --bronze: #CD7F32;
+
+}
+
+ *  {
+     box-sizing: border-box;
+     -webkit-tap-highlight-color: transparent;
+
+}
+
+ body  {
+     margin: 0;
+     font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", sans-serif;
+     background: white repeating-linear-gradient( 135deg, rgba(255, 0, 122, 0.035) 0px, rgba(255, 0, 122, 0.035) 12px, transparent 12px, transparent 24px, rgba(224, 36, 36, 0.035) 24px, rgba(224, 36, 36, 0.035) 36px, transparent 36px, transparent 48px, rgba(255, 92, 0, 0.035) 48px, rgba(255, 92, 0, 0.035) 60px, transparent 60px, transparent 72px );
+     background-attachment: fixed;
+     display: flex;
+     justify-content: center;
+     min-height: 100vh;
+
+}
+
+ .app-container  {
+     width: 100%;
+     max-width: 480px;
+     background: var(--bg-gradient);
+     min-height: 100vh;
+     position: relative;
+     padding-bottom: 100px;
+     box-shadow: 0 0 40px rgba(0, 0, 0, 0.03);
+     display: flex;
+     flex-direction: column;
+
+}
+
+/* Header UI Elements */ .main-header  {
+     display: flex;
+     align-items: center;
+     padding: 20px;
+     background: var(--glass);
+     backdrop-filter: blur(15px);
+     position: sticky;
+     top: 0;
+     z-index: 100;
+     border-bottom: 1px solid rgba(0,0,0,0.05);
+     gap: 16px;
+
+}
+
+ .main-header h2  {
+     margin: 0;
+     font-size: 1.3rem;
+     font-weight: 800;
+     flex: 1;
+     display: flex;
+     align-items: center;
+     gap: 8px;
+
+}
+
+ .main-header h2 i  {
+     color: var(--accent);
+
+}
+
+/* Podium Graphics Layout Structure (Top 3) */ .podium-container  {
+     display: grid;
+     grid-template-columns: repeat(3, 1fr);
+     align-items: flex-end;
+     gap: 10px;
+     padding: 30px 20px 20px;
+     background: linear-gradient(180deg, rgba(255,92,0,0.03) 0%, transparent 100%);
+     border-bottom: 1px solid rgba(0,0,0,0.02);
+
+}
+
+ .podium-spot  {
+     display: flex;
+     flex-direction: column;
+     align-items: center;
+     text-align: center;
+     position: relative;
+
+}
+
+ .podium-spot .avatar-wrapper  {
+     position: relative;
+     margin-bottom: 10px;
+
+}
+
+ .podium-spot img  {
+     width: 65px;
+     height: 65px;
+     border-radius: 50%;
+     object-fit: cover;
+     border: 3px solid #fff;
+     box-shadow: 0 8px 20px rgba(0,0,0,0.1);
+
+}
+
+ .podium-spot.rank-1 img  {
+     width: 85px;
+     height: 85px;
+     border-color: var(--gold);
+     box-shadow: 0 10px 25px rgba(255,215,0,0.25);
+
+}
+
+ .podium-spot.rank-2 img  {
+     border-color: var(--silver);
+
+}
+
+ .podium-spot.rank-3 img  {
+     border-color: var(--bronze);
+
+}
+
+ .crown  {
+     position: absolute;
+     top: -18px;
+     left: 50%;
+     transform: translateX(-50%) rotate(-5deg);
+     font-size: 1.4rem;
+     color: var(--gold);
+     filter: drop-shadow(0 2px 4px rgba(0,0,0,0.1));
+
+}
+
+ .badge  {
+     position: absolute;
+     bottom: 6px;
+     left: 50%;
+     transform: translateX(-50%);
+     width: 22px;
+     height: 22px;
+     border-radius: 50%;
+     color: white;
+     font-size: 0.75rem;
+     font-weight: 800;
+     display: flex;
+     align-items: center;
+     justify-content: center;
+     box-shadow: 0 4px 8px rgba(0,0,0,0.15);
+
+}
+
+ .rank-1 .badge  {
+     background: var(--gold);
+     color: #000;
+
+}
+
+ .rank-2 .badge  {
+     background: var(--silver);
+
+}
+
+ .rank-3 .badge  {
+     background: var(--bronze);
+
+}
+
+ .podium-name  {
+     font-size: 0.85rem;
+     font-weight: 700;
+     color: var(--primary);
+     max-width: 110px;
+     white-space: nowrap;
+     overflow: hidden;
+     text-overflow: ellipsis;
+     margin: 2px 0;
+
+}
+
+ .rank-1 .podium-name  {
+     font-size: 0.95rem;
+     font-weight: 800;
+
+}
+
+ .podium-points  {
+     font-size: 0.8rem;
+     font-weight: 800;
+     color: var(--accent);
+     display: flex;
+     align-items: center;
+     gap: 3px;
+
+}
+
+/* Adjust layout injection sorting sequence visually */ .podium-container .rank-2  {
+     order: 1;
+
+}
+
+ .podium-container .rank-1  {
+     order: 2;
+     padding-bottom: 15px;
+
+}
+
+ .podium-container .rank-3  {
+     order: 3;
+
+}
+
+/* Content List (Ranks 4-10) */ .rankings-list  {
+     padding: 10px 16px;
+     display: flex;
+     flex-direction: column;
+     gap: 12px;
+     flex: 1;
+
+}
+
+ .ranking-row  {
+     display: flex;
+     align-items: center;
+     background: white;
+     padding: 14px 18px;
+     border-radius: 20px;
+     box-shadow: var(--card-shadow);
+     border: 1px solid #f0f2f5;
+     transition: transform 0.2s;
+
+}
+
+ .ranking-row:hover  {
+     transform: translateY(-2px);
+
+}
+
+ .row-rank  {
+     font-size: 0.95rem;
+     font-weight: 800;
+     color: #999;
+     width: 30px;
+
+}
+
+ .ranking-row img  {
+     width: 40px;
+     height: 40px;
+     border-radius: 50%;
+     object-fit: cover;
+     margin-right: 14px;
+     border: 1px solid #eee;
+
+}
+
+ .row-details  {
+     flex: 1;
+
+}
+
+ .row-name  {
+     font-size: 0.9rem;
+     font-weight: 700;
+     color: var(--primary);
+     margin: 0 0 2px 0;
+
+}
+
+ .row-username  {
+     font-size: 0.75rem;
+     color: #777;
+     margin: 0;
+
+}
+
+ .row-points  {
+     font-size: 0.95rem;
+     font-weight: 800;
+     color: var(--primary);
+     display: flex;
+     align-items: center;
+     gap: 4px;
+
+}
+
+ .row-points span  {
+     color: var(--accent);
+
+}
+
+/* Shimmer Skeletal Loader Styling */ .shimmer  {
+     background: linear-gradient(90deg, #f0f0f0 25%, #f7f7f7 50%, #f0f0f0 75%);
+     background-size: 200% 100%;
+     animation: loadingShimmer 1.5s infinite;
+
+}
+
+ @keyframes loadingShimmer  {
+     0%  {
+     background-position: 200% 0;
+
+}
+
+ 100%  {
+     background-position: -200% 0;
+
+}
+
+}
+
+ .shimmer-loader-box  {
+     padding: 20px;
+     display: flex;
+     flex-direction: column;
+     gap: 12px;
+
+}
+
+ .shimmer-row  {
+     height: 68px;
+     border-radius: 20px;
+     width: 100%;
+
+}
+
+/* Bottom Navigation Bar Styles Layout */
+.bottom-nav {
+    position: fixed;
+    bottom: 0;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 100%;
+    max-width: 500px;
+    background: rgba(255,255,255,0.95);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+
+    display: flex;
+    justify-content: space-around;
+    align-items: center;
+
+    padding: 10px 0 calc(10px + env(safe-area-inset-bottom));
+
+    border-top: 1px solid rgba(0,0,0,0.05);
+
+    z-index: 100;
+}
+.nav-item {
+    flex: 1;
+
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+
+    gap: 4px;
+
+    color: #a0a0a0;
+    text-decoration: none;
+
+    font-size: 0.65rem;
+    font-weight: 700;
+
+    cursor: pointer;
+}
+
+.nav-item.active { color: var(--primary); }
+
+.nav-item i { font-size: 1.2rem; }
+
+.plus-nav {
+    position: relative;
+    top: -18px;
+}
+.plus-circle {
+    width: 56px;
+    height: 56px;
+
+    background: var(--primary);
+
+    border-radius: 50%;
+
+    display: flex;
+    align-items: center;
+    justify-content: center;
+
+    color: white;
+
+    font-size: 1.4rem;
+
+    border: 4px solid white;
+
+    box-shadow: 0 10px 25px rgba(0,0,0,0.15);
+
+    transition: transform 0.2s;
+}
+
+.plus-circle:hover { transform: scale(1.05); }

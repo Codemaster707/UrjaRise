@@ -1,0 +1,270 @@
+:root {
+    --bg-gradient: linear-gradient(-45deg, #ffe08a, #ff9e6d, #ff7eb3, #d65db1);
+    --glass: rgba(255, 255, 255, 0.65);
+    --input-white: #ffffff;
+    --accent-orange: #ff8a5c;
+    --text-gray: #7a7a7a;
+    --text-dark: #333333;
+}
+
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+    font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+}
+
+body {
+    min-height: 100vh;
+    background: var(--bg-gradient);
+    background-size: 400% 400%;
+    animation: gradientShift 15s ease infinite;
+    display: flex;
+    justify-content: center;
+    overflow-x: hidden;
+    position: relative; /* Anchor for layering */
+}
+
+/* --- THE PARTICLE LAYER --- */
+#particle-canvas {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    z-index: 1; /* Above background, below content */
+    pointer-events: none; /* Crucial: allows clicking buttons through the particles */
+}
+
+/* --- THE CONTENT LAYER --- */
+.container {
+    width: 100%;
+    max-width: 480px;
+    padding: 20px;
+    position: relative;
+    z-index: 10; /* Higher than particles */
+}
+
+@keyframes gradientShift {
+    0% { background-position: 0% 50%; }
+    50% { background-position: 100% 50%; }
+    100% { background-position: 0% 50%; }
+}
+
+header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 25px;
+}
+
+header h2 {
+    font-size: 0.9rem;
+    font-weight: 800;
+    color: var(--text-dark);
+    text-transform: uppercase;
+    letter-spacing: 1.5px;
+}
+
+.back-btn, .settings-btn {
+    background: white;
+    color: var(--accent-orange);
+    border: none;
+    width: 40px;
+    height: 40px;
+    border-radius: 12px;
+    cursor: pointer;
+    box-shadow: 0 4px 15px rgba(0,0,0,0.08);
+}
+
+.profile-section {
+    text-align: center;
+    margin-bottom: 30px;
+}
+
+.brand-title {
+    font-size: 2.8rem;
+    font-weight: 900;
+    margin-bottom: 15px;
+    background: linear-gradient(to bottom, #444, #000);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    letter-spacing: -1.5px;
+}
+
+.avatar-wrapper {
+    position: relative;
+    width: 120px;
+    height: 120px;
+    margin: 0 auto 12px;
+}
+
+.default-avatar {
+    width: 100%;
+    height: 100%;
+    border-radius: 50%;
+    border: 4px solid white;
+    background: linear-gradient(135deg, #fdfdfd, #e0e0e0);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 0 15px 30px rgba(0,0,0,0.12);
+}
+
+.default-avatar i { font-size: 60px; color: #ccc; margin-top: 15px; }
+
+.profile-avatar {
+    width: 100%;
+    height: 100%;
+    border-radius: 50%;
+    border: 4px solid white;
+    object-fit: cover;
+    display: none;
+    box-shadow: 0 15px 30px rgba(0,0,0,0.12);
+}
+
+.change-photo-text {
+    font-size: 0.9rem;
+    font-weight: 600;
+    color: #555;
+    margin-top: 10px;
+}
+
+.profile-card {
+    background: var(--glass);
+    backdrop-filter: blur(20px) saturate(180%);
+    -webkit-backdrop-filter: blur(20px) saturate(180%);
+    border-radius: 30px;
+    padding: 25px;
+    border: 1px solid rgba(255, 255, 255, 0.6);
+    box-shadow: 0 20px 45px rgba(0,0,0,0.1);
+}
+
+.form-group { margin-bottom: 22px; }
+
+.form-group label {
+    display: block;
+    font-size: 0.7rem;
+    font-weight: 800;
+    color: #555;
+    text-transform: uppercase;
+    margin-bottom: 8px;
+    margin-left: 5px;
+}
+
+.input-container {
+    background: var(--input-white);
+    border-radius: 16px;
+    padding: 15px 18px;
+    display: flex;
+    align-items: center;
+    transition: all 0.3s ease;
+    border: 1.5px solid transparent;
+}
+
+.input-container:focus-within {
+    border-color: var(--accent-orange);
+    transform: translateY(-3px);
+}
+
+.textarea-container {
+    align-items: flex-start;
+    padding-top: 15px;
+}
+
+.icon-accent {
+    background: linear-gradient(135deg, #ff8a5c, #d65db1);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    margin-right: 12px;
+    font-size: 1.15rem;
+}
+
+input, textarea {
+    border: none;
+    outline: none;
+    width: 100%;
+    font-size: 1rem;
+    font-weight: 500;
+    color: var(--text-dark);
+    background: transparent;
+}
+
+textarea {
+    resize: none;
+    overflow: hidden;
+    min-height: 24px;
+    line-height: 1.5;
+}
+
+.counter {
+    text-align: right;
+    font-size: 0.65rem;
+    color: #999;
+    margin-top: 6px;
+    font-weight: 700;
+}
+
+.save-button {
+    width: 100%;
+    background: linear-gradient(90deg, #ff8a5c, #d65db1);
+    color: white;
+    border: none;
+    padding: 20px;
+    border-radius: 18px;
+    font-size: 1.05rem;
+    font-weight: 800;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 12px;
+    box-shadow: 0 12px 25px rgba(214, 93, 177, 0.3);
+    transition: all 0.3s;
+}
+
+.stats-row {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 15px;
+    margin-top: 25px;
+}
+
+.stat-box {
+    background: rgba(255, 255, 255, 0.5);
+    border-radius: 24px;
+    padding: 18px 10px;
+    text-align: center;
+    border: 1px solid rgba(255,255,255,0.4);
+}
+
+.stat-icon {
+    width: 44px;
+    height: 44px;
+    border-radius: 14px;
+    margin: 0 auto 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: white;
+}
+
+.bg-orange { background: linear-gradient(135deg, #ffb347, #ffcc33); }
+.bg-red { background: linear-gradient(135deg, #ff7e67, #ff512f); }
+.bg-purple { background: linear-gradient(135deg, #d65db1, #8e2de2); }
+
+.stat-num { display: block; font-weight: 800; font-size: 1.3rem; }
+.stat-label { font-size: 0.6rem; font-weight: 800; text-transform: uppercase; }
+
+.bottom-nav {
+    background: rgba(255, 255, 255, 0.85);
+    margin-top: 25px;
+    border-radius: 22px;
+    display: flex;
+    justify-content: space-around;
+    padding: 15px;
+}
+
+.nav-item { text-align: center; color: #aaa; font-size: 0.7rem; font-weight: 700; }
+.nav-item i { font-size: 1.3rem; display: block; margin-bottom: 5px; }
+.nav-item.active { color: var(--accent-orange); }
