@@ -1,616 +1,819 @@
-import { RARITY_WEIGHT } from "./cards-catalog.js";
-import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
-import { getAuth, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
+/**
+ * UrjaRise — Chat Module
+ * ---------------------------------------------------------------------------
+ * Vanilla JS (ES Modules) + Firebase Auth + Cloud Firestore. No backend.
+ *
+ * Firestore layout:
+ *   users/{uid}                          { displayName, photoURL, isOnline }
+ *   users/{uid}/growthFriends/{friendUid}  (existence = friendship, per user-profile.js)
+ *   users/{uid}/cards/{cardId}            { id, rarity, quantity, ownerHistory[], acquiredAt, lastTransferredAt }
+ *   chats/{chatId}                       { participants[], lastMessage, lastSenderId, timestamp }
+ *   chats/{chatId}/messages/{autoId}
+ *
+ * chatId is always [uidA, uidB].sort().join("_") — never created twice.
+ *
+ * NOTE ON CSP: this file intentionally does NOT create a Content-Security-Policy
+ * at runtime. Define the policy once in the HTML `<head>`:
+ *   <meta http-equiv="Content-Security-Policy" content="...">
+ * Generating CSP from JS is unreliable (races the initial paint) and is a
+ * security smell — CSP belongs to the document, not the script.
+ *
+ * NOTE ON CONFIG: Firebase credentials are NOT hardcoded here. ./firebase-config.js
+ * is the single source of truth for the whole app — it already calls
+ * initializeApp() and exports the resulting `app` instance, so every page
+ * (chat.js, feed.js, admin pages, etc.) reuses the same app rather than each
+ * re-initializing Firebase with its own copy of the config.
+ */
+
+import { app } from "./firebase-config.js";
+
 import {
     getFirestore,
     doc,
-    getDoc,
-    addDoc,
-    getDocs,
     collection,
+    addDoc,
+    setDoc,
+    getDoc,
+    onSnapshot,
     query,
     orderBy,
-    onSnapshot,
-    serverTimestamp,
     runTransaction,
-    where,
-    deleteDoc
+    serverTimestamp,
+    arrayUnion
 } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
 
-// ==========================================
-// 1. FIREBASE CONFIGURATION
-// ==========================================
-const firebaseConfig = {
-    apiKey: "AIzaSyDKuxeqnc0hrqcb8ISBfWiuqIUmAgSFxFQ",
-    authDomain: "urjarise-auth.firebaseapp.com",
-    projectId: "urjarise-auth",
-    storageBucket: "urjarise-auth.firebasestorage.app",
-    messagingSenderId: "293342690348",
-    appId: "1:293342690348:web:a830c623dfa57b130c6589"
+import {
+    getAuth,
+    onAuthStateChanged
+} from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
+
+// =============================================================================
+// FIREBASE
+// =============================================================================
+
+const db = getFirestore(app);
+const auth = getAuth(app);
+
+/** Firestore reference helpers — the ONLY place paths are constructed. */
+const FirestoreRefs = {
+    getUserRef: (uid) => doc(db, "users", uid),
+    getChatRef: (chatId) => doc(db, "chats", chatId),
+    getMessagesRef: (chatId) => collection(db, "chats", chatId, "messages"),
+    getInventoryRef: (uid) => collection(db, "users", uid, "cards"),
+    getCardRef: (uid, cardId) => doc(db, "users", uid, "cards", String(cardId)),
+    getGrowthFriendRef: (uid, friendUid) => doc(db, "users", uid, "growthFriends", friendUid)
 };
 
-const app = initializeApp(firebaseConfig);
-const auth = getAuth(app);
-const db = getFirestore(app);
-
-// ==========================================
-// 2. RUNTIME STATE
-// ==========================================
-const params = new URLSearchParams(window.location.search);
-const targetUid = params.get("uid");
-
-if (!targetUid) window.location.href = "feed.html";
-
-let currentUser = null;
-let roomId = null;
-let unsubscribeMessages = null;
-let unsubscribeFutureMessages = null;
-let targetUserDataGlobal = null;
-let isGrowthFriendGlobal = false;
-
-// ==========================================
-// 3. DOM ELEMENTS
-// ==========================================
-const backBtn = document.getElementById("backBtn");
-const chatUserInfo = document.getElementById("chatUserInfo");
-const chatAvatar = document.getElementById("chatAvatar");
-const chatDisplayName = document.getElementById("chatDisplayName");
-const chatStatus = document.getElementById("chatStatus");
-const messagesContainer = document.getElementById("messagesContainer");
-const chatForm = document.getElementById("chatForm");
-const messageInput = document.getElementById("messageInput");
-const chatLoading = document.getElementById("chatLoading");
-const growthCardBtn = document.getElementById("growthCardBtn");
-const notFriendPopup = document.getElementById("notFriendPopup");
-const closePopupBtn = document.getElementById("closePopupBtn");
-const cardSelectorModal = document.getElementById("cardSelectorModal");
-const closeCardModalBtn = document.getElementById("closeCardModalBtn");
-const cardGrid = document.getElementById("cardGrid");
-const cardViewerModal = document.getElementById("cardViewerModal");
-const closeViewerBtn = document.getElementById("closeViewerBtn");
-const enlargedCardContainer = document.getElementById("enlargedCardContainer");
-const inventorySubtitle = document.getElementById("inventorySubtitle");
-
-// ==========================================
-// 4. NAVIGATION
-// ==========================================
-if (backBtn) backBtn.onclick = () => window.location.href = `user-profile.html?uid=${targetUid}`;
-if (chatUserInfo) chatUserInfo.onclick = () => window.location.href = `user-profile.html?uid=${targetUid}`;
-
-// ==========================================
-// 5. FUTURE MESSAGE CONTROLS (UNCHANGED)
-// ==========================================
-function setupFutureMessageControls() {
-    if (document.getElementById("futureMessageControls")) return;
-    const futureControls = document.createElement("div");
-    futureControls.id = "futureMessageControls";
-    futureControls.className = "future-controls-container";
-    futureControls.innerHTML = `
-        <label class="future-toggle-label">
-            <input type="checkbox" id="isFutureMsg"> 📨 Send as Future Message
-        </label>
-        <select id="futureDelaySelect" class="future-dropdown-select" style="display: none;">
-            <option value="30">30 Days</option>
-            <option value="90">90 Days</option>
-            <option value="180">180 Days</option>
-            <option value="365">1 Year</option>
-            <option value="custom">Custom Date</option>
-        </select>
-        <input type="date" id="futureCustomDate" class="future-date-picker" style="display: none;">
-    `;
-    chatForm.parentNode.insertBefore(futureControls, chatForm);
-
-    const isFutureCheckbox = document.getElementById("isFutureMsg");
-    const delaySelect = document.getElementById("futureDelaySelect");
-    const customDateInput = document.getElementById("futureCustomDate");
-
-    isFutureCheckbox.addEventListener("change", () => {
-        const active = isFutureCheckbox.checked;
-        delaySelect.style.display = active ? "inline-block" : "none";
-        if (!active) customDateInput.style.display = "none";
-        else if (delaySelect.value === "custom") customDateInput.style.display = "inline-block";
-    });
-    delaySelect.addEventListener("change", () => {
-        customDateInput.style.display = delaySelect.value === "custom" ? "inline-block" : "none";
-    });
+/** Deterministic, duplicate-proof chat id for two participants. */
+function buildChatId(uidA, uidB) {
+    return [uidA, uidB].sort().join("_");
 }
 
-// ==========================================
-// 6. ENERGY METRICS (UNCHANGED)
-// ==========================================
-function calculateEnergyMetrics(userData) {
-    if (!userData) return 50;
-    let score = 25;
-    score += Math.min(25, (userData.totalLogs || 0) * 2);
-    score += Math.min(30, (userData.currentStreak || 0) * 3);
-    if (userData.lastActiveDate) {
-        const diff = Math.ceil(Math.abs(new Date() - new Date(userData.lastActiveDate)) / 86400000);
-        if (diff > 2) score -= Math.min(20, (diff - 2) * 4);
-    }
-    return Math.max(0, Math.min(100, score));
+// =============================================================================
+// CONSTANTS
+// =============================================================================
+
+const RARITY_WEIGHT = {
+    Mythical: 1,
+    Legendary: 2,
+    Epic: 3,
+    Rare: 4,
+    Uncommon: 5,
+    Common: 6
+};
+
+const CARD_IMAGE_BASE_PATH = "card";
+const CARD_IMAGE_FALLBACK = "https://via.placeholder.com/150";
+
+/**
+ * Single source of truth for card image paths. Card `id` values are already
+ * complete filename stems (e.g. "card81A", "card72A") — do not prepend/append
+ * anything else here, or you'll get double-stacked names like "cardcard81AA.jpg".
+ */
+function getCardImage(cardId) {
+    return `${CARD_IMAGE_BASE_PATH}/${cardId}.jpg`;
 }
 
-function processEnergyHtmlBadge(score) {
-    let color = "#ff3b30", label = "🔴 Low Energy";
-    if (score > 25 && score <= 50)  { color = "#ffcc00"; label = "🟡 Building Momentum"; }
-    if (score > 50 && score <= 75)  { color = "#007aff"; label = "🔵 Strong Progress"; }
-    if (score > 75)                  { color = "#4caf50"; label = "🟢 Peak Energy"; }
-    return `<span class="user-header-energy-badge" style="color:${color};">⚡ ${score}% (${label})</span>`;
-}
+// =============================================================================
+// UTILITIES
+// =============================================================================
 
-// ==========================================
-// 7. LOAD TARGET USER HEADER (UNCHANGED)
-// ==========================================
-async function loadTargetUserHeader() {
-    try {
-        const userSnap = await getDoc(doc(db, "users", targetUid));
-        let growthFriendStr = "";
-
-        if (currentUser) {
-            const friendSnap = await getDoc(doc(db, "users", currentUser.uid, "growthFriends", targetUid));
-            if (friendSnap.exists()) {
-                isGrowthFriendGlobal = true;
-                const linkData = friendSnap.data();
-                let connectedDate = "Recent";
-                if (linkData.connectedAt) {
-                    const d = linkData.connectedAt.toDate ? linkData.connectedAt.toDate() : new Date(linkData.connectedAt);
-                    connectedDate = d.toLocaleDateString([], { day: "numeric", month: "short", year: "numeric" });
-                }
-                growthFriendStr = `<div class="friendship-status-subline">🌱 Growth Friends • Since: ${connectedDate}</div>`;
-            } else {
-                isGrowthFriendGlobal = false;
-            }
-        }
-
-        if (userSnap.exists()) {
-            const profile = userSnap.data();
-            targetUserDataGlobal = profile;
-            const energyScore = calculateEnergyMetrics(profile);
-            chatDisplayName.innerHTML = `${profile.displayName || profile.username || "Urja Member"} ${processEnergyHtmlBadge(energyScore)}`;
-            if (profile.photoURL) chatAvatar.src = profile.photoURL;
-            chatStatus.innerHTML = `<span>${profile.isOnline ? "Online" : "Offline"}</span>${growthFriendStr}`;
-            chatStatus.style.color = profile.isOnline ? "#4caf50" : "var(--text-muted)";
-        } else {
-            chatDisplayName.textContent = "Unknown User";
-        }
-    } catch (err) {
-        console.error("Header load error:", err);
-    }
-}
-
-// ==========================================
-// 8. MESSAGE STREAM (UNCHANGED LOGIC)
-// ==========================================
-function listenToMessages() {
-    roomId = currentUser.uid < targetUid
-        ? `${currentUser.uid}_${targetUid}`
-        : `${targetUid}_${currentUser.uid}`;
-
-    let standardMsgs = [];
-    let futureMsgs = [];
-
-    const mergeAndRender = () => {
-        if (chatLoading) chatLoading.style.display = "none";
-        messagesContainer.innerHTML = "";
-
-        const all = [...standardMsgs, ...futureMsgs].sort((a, b) => {
-            const tA = a.timestamp ? (a.timestamp.toDate ? a.timestamp.toDate() : new Date(a.timestamp)) : 0;
-            const tB = b.timestamp ? (b.timestamp.toDate ? b.timestamp.toDate() : new Date(b.timestamp)) : 0;
-            return tA - tB;
-        });
-
-        if (all.length === 0) {
-            messagesContainer.innerHTML = `<div class="chat-loading">No messages yet. Start your conversation! 👋</div>`;
-            return;
-        }
-
-        all.forEach(msg => {
-            const isMe = msg.senderId === currentUser.uid;
-            const wrap = document.createElement("div");
-
-            let timeStr = "", dateStr = "";
-            if (msg.timestamp) {
-                const d = msg.timestamp.toDate ? msg.timestamp.toDate() : new Date(msg.timestamp);
-                timeStr = d.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
-                dateStr = d.toLocaleDateString([], { day: "numeric", month: "short", year: "numeric" });
-            }
-
-            if (msg.isFutureCard) {
-                wrap.className = "msg-wrapper execution-future-card";
-                wrap.style.cssText = "width:100%;display:flex;justify-content:center;";
-                let writtenDate = "Past Connection";
-                if (msg.createdAt) {
-                    const d = msg.createdAt.toDate ? msg.createdAt.toDate() : new Date(msg.createdAt);
-                    writtenDate = d.toLocaleDateString([], { day: "numeric", month: "short", year: "numeric" });
-                }
-                wrap.innerHTML = `
-                    <div class="future-card-unlocked-bubble">
-                        <div class="future-card-header-badge">📨 Future Message Unlocked</div>
-                        <div class="future-card-timestamp-sub">Written: ${writtenDate}</div>
-                        <div class="future-card-text-body">"${escapeHTML(msg.text)}"</div>
-                        <div class="future-card-footer-time">Unlocked at ${timeStr}</div>
-                    </div>
-                `;
-            } else if (msg.isGrowthCard) {
-                wrap.className = `msg-wrapper ${isMe ? "me" : "them"}`;
-                const cd = msg.cardData;
-                const senderLabel = isMe ? "You" : (targetUserDataGlobal?.displayName || "Friend");
-                const payload = { ...cd, sender: senderLabel, date: dateStr };
-                const safeJson = JSON.stringify(payload).replace(/'/g, "&#39;").replace(/"/g, "&quot;");
-                const rc = (cd.rarity || "common").toLowerCase();
-                wrap.innerHTML = `
-                    <div class="mini-growth-card rarity-${rc}" onclick="window.showEnlargedCard('${safeJson}')">
-                        <div class="mini-card-glow"></div>
-                        <div class="mini-mascot">${cd.emoji || cd.mascot || "🎴"}</div>
-                        <div class="mini-name">${cd.name}</div>
-                        <div class="card-badge">${cd.rarity}</div>
-                        <span class="msg-time">${timeStr}</span>
-                    </div>
-                `;
-            } else {
-                wrap.className = `msg-wrapper ${isMe ? "me" : "them"}`;
-                wrap.innerHTML = `
-                    <div class="msg-bubble">
-                        ${escapeHTML(msg.text)}
-                        <span class="msg-time">${timeStr}</span>
-                    </div>
-                `;
-            }
-            messagesContainer.appendChild(wrap);
-        });
-        messagesContainer.scrollTop = messagesContainer.scrollHeight;
-    };
-
-    unsubscribeMessages = onSnapshot(
-        query(collection(db, "chats", roomId, "messages"), orderBy("timestamp", "asc")),
-        (snap) => {
-            standardMsgs = snap.docs.map(d => ({ id: d.id, ...d.data() }));
-            mergeAndRender();
-        },
-        err => console.error("Message stream error:", err)
-    );
-
-    unsubscribeFutureMessages = onSnapshot(
-        query(collection(db, "chats", roomId, "futureMessages")),
-        (snap) => {
-            const now = new Date();
-            futureMsgs = snap.docs
-                .map(d => ({ id: d.id, ...d.data() }))
-                .filter(m => {
-                    const delivery = m.deliveryDate?.toDate ? m.deliveryDate.toDate() : new Date(m.deliveryDate);
-                    return now >= delivery;
-                })
-                .map(m => ({
-                    id: m.id,
-                    text: m.message,
-                    senderId: m.senderId,
-                    timestamp: m.deliveryDate,
-                    createdAt: m.createdAt,
-                    isFutureCard: true
-                }));
-            mergeAndRender();
-        },
-        err => console.error("Future messages error:", err)
-    );
-}
-
-// ==========================================
-// 9. SEND MESSAGE (UNCHANGED)
-// ==========================================
-if (chatForm) {
-    chatForm.onsubmit = async (e) => {
-        e.preventDefault();
-        const text = messageInput.value.trim();
-        if (!text || !roomId) return;
-
-        const isFutureCheckbox = document.getElementById("isFutureMsg");
-        const delaySelect = document.getElementById("futureDelaySelect");
-        const customDateInput = document.getElementById("futureCustomDate");
-        const isFuture = isFutureCheckbox?.checked || false;
-
-        messageInput.value = "";
-
-        try {
-            if (isFuture) {
-                let deliveryDate = new Date();
-                if (delaySelect.value === "custom" && customDateInput?.value) {
-                    deliveryDate = new Date(customDateInput.value);
-                } else {
-                    deliveryDate.setDate(deliveryDate.getDate() + parseInt(delaySelect.value, 10));
-                }
-                await addDoc(collection(db, "chats", roomId, "futureMessages"), {
-                    senderId: currentUser.uid,
-                    receiverId: targetUid,
-                    message: text,
-                    createdAt: serverTimestamp(),
-                    deliveryDate,
-                    delivered: false
-                });
-                if (isFutureCheckbox) isFutureCheckbox.checked = false;
-                if (delaySelect) delaySelect.style.display = "none";
-                if (customDateInput) customDateInput.style.display = "none";
-                alert("📨 Your message has been safely locked into the future pipeline!");
-            } else {
-                await addDoc(collection(db, "chats", roomId, "messages"), {
-                    text,
-                    senderId: currentUser.uid,
-                    receiverId: targetUid,
-                    timestamp: serverTimestamp()
-                });
-                const senderSnap = await getDoc(doc(db, "users", currentUser.uid));
-                const senderData = senderSnap.exists() ? senderSnap.data() : {};
-                await addDoc(collection(db, "users", targetUid, "notifications"), {
-                    type: "message",
-                    senderId: currentUser.uid,
-                    senderName: senderData.displayName || senderData.username || "Urja Member",
-                    senderPhoto: senderData.photoURL || "",
-                    text,
-                    createdAt: serverTimestamp(),
-                    seen: false
-                });
-            }
-        } catch (err) {
-            console.error("Send message error:", err);
-        }
-    };
-}
-
+/** Escapes any user-generated string before it can touch the DOM as text. */
 function escapeHTML(str) {
-    return String(str).replace(/[&<>'"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", "'": "&#39;", '"': "&quot;" }[c]));
+    return String(str ?? "").replace(/[&<>'"]/g, (tag) => ({
+        "&": "&amp;",
+        "<": "&lt;",
+        ">": "&gt;",
+        "'": "&#39;",
+        '"': "&quot;"
+    }[tag]));
 }
 
-// ==========================================
-// 10. CARD INVENTORY — reads from users/{uid}/cards
-// ==========================================
-async function renderCardGrid() {
-    if (!cardGrid) return;
-    cardGrid.innerHTML = '<div class="chat-loading">Opening your vault...</div>';
-    if (inventorySubtitle) inventorySubtitle.textContent = "Loading your cards...";
+/** Small helper to build DOM nodes without ever touching innerHTML with dynamic data. */
+function el(tag, attrs = {}, children = []) {
+    const node = document.createElement(tag);
+    for (const [key, value] of Object.entries(attrs)) {
+        if (key === "class") node.className = value;
+        else if (key === "text") node.textContent = value;
+        else if (key.startsWith("on") && typeof value === "function") {
+            node.addEventListener(key.slice(2).toLowerCase(), value);
+        } else {
+            node.setAttribute(key, value);
+        }
+    }
+    for (const child of [].concat(children)) {
+        if (child) node.appendChild(child);
+    }
+    return node;
+}
 
-    try {
-        const snap = await getDocs(collection(db, "users", currentUser.uid, "cards"));
-        cardGrid.innerHTML = "";
+function setImageWithFallback(imgEl, src, fallback = CARD_IMAGE_FALLBACK) {
+    imgEl.addEventListener("error", () => { imgEl.src = fallback; }, { once: true });
+    imgEl.src = src;
+}
 
-        if (snap.empty) {
-            if (inventorySubtitle) inventorySubtitle.textContent = "No cards available.";
-            cardGrid.innerHTML = `
-                <div class="chat-loading" style="text-align:center;padding:40px 20px;color:var(--text-muted);">
-                    <div style="font-size:2.5rem;margin-bottom:12px;">🎴</div>
-                    <p>No cards available.</p>
-                    <p style="font-size:0.85rem;margin-top:6px;opacity:0.7;">Open packs from the Urja Store to build your collection.</p>
-                </div>
-            `;
+/** Lightweight toast system — replaces alert()/confirm() entirely. */
+const Toast = (() => {
+    let container = null;
+
+    function ensureContainer() {
+        if (container) return container;
+        container = el("div", { class: "urja-toast-container" });
+        Object.assign(container.style, {
+            position: "fixed",
+            bottom: "16px",
+            left: "50%",
+            transform: "translateX(-50%)",
+            display: "flex",
+            flexDirection: "column",
+            gap: "8px",
+            zIndex: "9999",
+            width: "min(92vw, 360px)"
+        });
+        document.body.appendChild(container);
+        return container;
+    }
+
+    function show(message, { type = "info", actionLabel = null, onAction = null, duration = 4000 } = {}) {
+        const c = ensureContainer();
+        const colors = { info: "#2d3748", success: "#1f8a4c", error: "#b3261e" };
+
+        const toast = el("div", { class: `urja-toast urja-toast-${type}` });
+        Object.assign(toast.style, {
+            background: colors[type] || colors.info,
+            color: "#fff",
+            padding: "10px 14px",
+            borderRadius: "10px",
+            fontSize: "14px",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "space-between",
+            gap: "12px",
+            boxShadow: "0 4px 14px rgba(0,0,0,0.25)"
+        });
+
+        toast.appendChild(el("span", { text: message }));
+
+        let timer = null;
+        if (actionLabel && typeof onAction === "function") {
+            const btn = el("button", { text: actionLabel });
+            Object.assign(btn.style, {
+                background: "transparent",
+                border: "1px solid rgba(255,255,255,0.6)",
+                color: "#fff",
+                borderRadius: "6px",
+                padding: "4px 8px",
+                cursor: "pointer",
+                flexShrink: "0"
+            });
+            btn.addEventListener("click", () => {
+                clearTimeout(timer);
+                toast.remove();
+                onAction();
+            });
+            toast.appendChild(btn);
+        }
+
+        c.appendChild(toast);
+        timer = setTimeout(() => toast.remove(), duration);
+    }
+
+    return {
+        info: (msg, opts) => show(msg, { ...opts, type: "info" }),
+        success: (msg, opts) => show(msg, { ...opts, type: "success" }),
+        error: (msg, opts) => show(msg, { ...opts, type: "error" })
+    };
+})();
+
+// =============================================================================
+// CHAT APPLICATION
+// =============================================================================
+
+class ChatApp {
+    constructor() {
+        // ---- state -----------------------------------------------------------
+        this.currentUser = null;
+        this.otherUserUid = null;
+        this.chatId = null;
+
+        this.inventory = [];
+        this.selectedCard = null;
+        this.selectedQuantity = 1;
+        this.isTransferring = false;
+
+        this.messageNodesById = new Map();
+
+        this.unsubscribeMessages = null;
+        this.unsubscribeInventory = null;
+        this.unsubscribeProfile = null;
+
+        // ---- DOM cache ---------------------------------------------------------
+        this.dom = {
+            backBtn: document.getElementById("backBtn"),
+            chatDisplayName: document.getElementById("chatDisplayName"),
+            chatStatus: document.getElementById("chatStatus"),
+            chatAvatar: document.getElementById("chatAvatar"),
+            messagesContainer: document.getElementById("messagesContainer"),
+            chatForm: document.getElementById("chatForm"),
+            messageInput: document.getElementById("messageInput"),
+            sendBtn: document.getElementById("sendBtn"),
+            growthCardBtn: document.getElementById("growthCardBtn"),
+
+            notFriendPopup: document.getElementById("notFriendPopup"),
+            closePopupBtn: document.getElementById("closePopupBtn"),
+
+            cardSelectorModal: document.querySelector(".card-modal-overlay"),
+            closeCardModalBtn: document.getElementById("closeCardModalBtn"),
+            cardGrid: document.getElementById("cardGrid"),
+
+            quantityModal: document.getElementById("quantityModal"),
+            quantityCardImage: document.getElementById("quantityCardImage"),
+            quantityCardTitle: document.getElementById("quantityCardTitle"),
+            quantityValue: document.getElementById("quantityValue"),
+            minusQty: document.getElementById("minusQty"),
+            plusQty: document.getElementById("plusQty"),
+            cancelTransfer: document.getElementById("cancelTransfer"),
+            confirmTransfer: document.getElementById("confirmTransfer"),
+
+            cardViewerModal: document.getElementById("cardViewerModal") || document.querySelector(".card-viewer-overlay"),
+            closeViewerBtn: document.getElementById("closeViewerBtn"),
+            enlargedCardContainer: document.getElementById("enlargedCardContainer")
+        };
+    }
+
+    // ---------------------------------------------------------------------
+    // INITIALIZATION
+    // ---------------------------------------------------------------------
+
+    init() {
+        const params = new URLSearchParams(window.location.search);
+        this.otherUserUid = params.get("uid");
+
+        if (!this.otherUserUid) {
+            Toast.error("No user specified for this chat.");
+            window.location.href = "/";
             return;
         }
 
-        const cards = snap.docs.map(d => ({ docId: d.id, ...d.data() }));
-        if (inventorySubtitle) inventorySubtitle.textContent = `${cards.length} card${cards.length !== 1 ? "s" : ""} in your collection`;
+        onAuthStateChanged(auth, (user) => {
+            if (!user) {
+                window.location.href = "/auth.html";
+                return;
+            }
+            this.currentUser = user;
 
-        cards.forEach(card => {
-            const rc = (card.rarity || "common").toLowerCase();
-            const qty = card.quantity || 1;
-            const el = document.createElement("div");
-            el.className = `growth-card rarity-${rc}`;
-            el.innerHTML = `
-                <div class="card-shimmer-surface"></div>
-                <div class="card-mascot">${card.emoji || "🎴"}</div>
-                <div class="card-name">${card.name}</div>
-                <div class="card-badge">${card.rarity}</div>
-                <div class="card-qty-tag">×${qty} owned</div>
-            `;
-            el.onclick = () => initiateCardTransfer(card);
-            cardGrid.appendChild(el);
+            if (this.otherUserUid === this.currentUser.uid) {
+                Toast.error("You cannot chat with yourself.");
+                window.location.href = "/";
+                return;
+            }
+
+            this.chatId = buildChatId(this.currentUser.uid, this.otherUserUid);
+            this.bindEvents();
+            this.loadOtherUserProfile();
+            this.loadMessages();
         });
 
-    } catch (err) {
-        console.error("Card grid error:", err);
-        cardGrid.innerHTML = '<div class="chat-loading" style="color:red;">Failed to load your inventory.</div>';
-    }
-}
-
-// ==========================================
-// ==========================================
-// ==========================================
-// 11. CARD TRANSFER — true ownership transfer
-// ==========================================
-async function initiateCardTransfer(card) {
-
-    // Prevent sending cards to yourself
-    if (targetUid === currentUser.uid) {
-        alert("You can't send cards to yourself.");
-        return;
+        window.addEventListener("online", () => Toast.success("Back online."));
+        window.addEventListener("offline", () => Toast.error("You are offline. Messages will send once reconnected."));
+        window.addEventListener("beforeunload", () => this.destroy());
     }
 
-    // Close selector
-    if (cardSelectorModal) {
-        cardSelectorModal.style.display = "none";
-    }
+    bindEvents() {
+        const d = this.dom;
 
-    // Ensure room exists
-    if (!roomId) return;
+        d.chatForm?.addEventListener("submit", (e) => this.handleSendMessage(e));
+        d.backBtn?.addEventListener("click", () => window.history.back());
 
-    const senderCardRef = doc(
-        db,
-        "users",
-        currentUser.uid,
-        "cards",
-        card.docId
-    );
-
-    const receiverCardRef = doc(
-        db,
-        "users",
-        targetUid,
-        "cards",
-        card.docId
-    );
-
-    try {
-
-        await runTransaction(db, async (tx) => {
-
-            // Verify sender still owns the card
-            const senderSnap = await tx.get(senderCardRef);
-
-            if (!senderSnap.exists()) {
-                throw new Error("Card no longer in your inventory.");
-            }
-
-            const senderData = senderSnap.data();
-            const currentQty = senderData.quantity || 1;
-
-            // Check receiver copy
-            const receiverSnap = await tx.get(receiverCardRef);
-
-            // Card payload
-            const cardPayload = {
-                id: card.id,
-                docId: card.docId,
-                name: card.name,
-                emoji: card.emoji || card.mascot || "🎴",
-                mascot: card.emoji || card.mascot || "🎴",
-                rarity: card.rarity,
-                description: card.description || "",
-                originalOwner: senderData.originalOwner || currentUser.uid,
-                transferCount: (senderData.transferCount || 0) + 1,
-                sender: currentUser.displayName || currentUser.email,
-                receiver: targetUid
-            };
-
-            // Remove from sender
-            if (currentQty > 1) {
-                tx.update(senderCardRef, {
-                    quantity: currentQty - 1
-                });
-            } else {
-                tx.delete(senderCardRef);
-            }
-
-            // Add to receiver
-            if (receiverSnap.exists()) {
-
-                const receiverQty = receiverSnap.data().quantity || 1;
-
-                tx.update(receiverCardRef, {
-                    quantity: receiverQty + 1,
-                    lastReceivedAt: new Date()
-                });
-
-            } else {
-
-                tx.set(receiverCardRef, {
-                    ...cardPayload,
-                    quantity: 1,
-                    acquiredAt: new Date(),
-                    source: "gift",
-                    originalOwner: senderData.originalOwner || currentUser.uid,
-                    previousOwner: currentUser.uid,
-                    lastReceivedAt: new Date()
-                });
-
-            }
-
-            // Add message to chat
-            const msgRef = doc(collection(db, "chats", roomId, "messages"));
-
-            tx.set(msgRef, {
-                isGrowthCard: true,
-                cardData: cardPayload,
-                senderId: currentUser.uid,
-                receiverId: targetUid,
-                timestamp: new Date()
-            });
-
+        d.growthCardBtn?.addEventListener("click", () => this.openCardSelector());
+        d.closePopupBtn?.addEventListener("click", () => {
+            clearTimeout(this._notFriendPopupTimer);
+            d.notFriendPopup?.classList.remove("show");
         });
+        d.closeCardModalBtn?.addEventListener("click", () => {
+            this.hide(d.cardSelectorModal);
+            this.hide(d.quantityModal);
+        });
+        d.closeViewerBtn?.addEventListener("click", () => this.hide(d.cardViewerModal));
 
-        // Notification
-        const senderSnap = await getDoc(doc(db, "users", currentUser.uid));
-        const senderData = senderSnap.exists() ? senderSnap.data() : {};
+        d.minusQty?.addEventListener("click", () => this.stepQuantity(-1));
+        d.plusQty?.addEventListener("click", () => this.stepQuantity(1));
+        d.cancelTransfer?.addEventListener("click", () => this.closeQuantityModal());
+        d.confirmTransfer?.addEventListener("click", () => this.handleConfirmTransfer());
+    }
 
-        await addDoc(
-            collection(db, "users", targetUid, "notifications"),
-            {
-                type: "card_gift",
-                senderId: currentUser.uid,
-                senderName:
-                    senderData.displayName ||
-                    senderData.username ||
-                    "Urja Member",
-                senderPhoto: senderData.photoURL || "",
-                text: `Sent you a ${card.rarity} "${card.name}" card! 🎴`,
-                createdAt: serverTimestamp(),
-                seen: false
+    /** Cleans up all live listeners. Call on page teardown / SPA navigation. */
+    destroy() {
+        this.unsubscribeMessages?.();
+        this.unsubscribeInventory?.();
+        this.unsubscribeProfile?.();
+        this.unsubscribeMessages = null;
+        this.unsubscribeInventory = null;
+        this.unsubscribeProfile = null;
+    }
+
+    // ---------------------------------------------------------------------
+    // PROFILE
+    // ---------------------------------------------------------------------
+
+    loadOtherUserProfile() {
+        const ref = FirestoreRefs.getUserRef(this.otherUserUid);
+
+        this.unsubscribeProfile = onSnapshot(
+            ref,
+            (snap) => this.renderProfile(snap.exists() ? snap.data() : null),
+            (error) => {
+                console.error("Profile listener error:", error);
+                Toast.error("Couldn't load user profile.", {
+                    actionLabel: "Retry",
+                    onAction: () => this.loadOtherUserProfile()
+                });
             }
         );
+    }
 
-    } catch (err) {
+    renderProfile(data) {
+        const d = this.dom;
+        if (!data) {
+            if (d.chatDisplayName) d.chatDisplayName.textContent = "Unknown User";
+            return;
+        }
+        if (d.chatDisplayName) d.chatDisplayName.textContent = data.displayName || "User";
+        if (d.chatStatus) d.chatStatus.textContent = data.isOnline ? "Online" : "Offline";
+        if (d.chatAvatar && data.photoURL) setImageWithFallback(d.chatAvatar, data.photoURL);
+    }
 
-        console.error("Card transfer error:", err);
+    // ---------------------------------------------------------------------
+    // MESSAGING (single realtime listener, incremental rendering)
+    // ---------------------------------------------------------------------
 
-        if (err.message === "Card no longer in your inventory.") {
-            alert("This card is no longer in your inventory.");
-        } else {
-            alert("Transfer failed. Please try again.");
+    loadMessages() {
+        const q = query(FirestoreRefs.getMessagesRef(this.chatId), orderBy("timestamp", "asc"));
+
+        this.unsubscribeMessages = onSnapshot(
+            q,
+            { includeMetadataChanges: true },
+            (snapshot) => this.applyMessageChanges(snapshot),
+            (error) => {
+                console.error("Message listener error:", error);
+                this.dom.messagesContainer.replaceChildren(
+                    el("div", { class: "chat-loading", text: "Failed to load messages." })
+                );
+                Toast.error("Connection issue while loading chat.", {
+                    actionLabel: "Retry",
+                    onAction: () => this.loadMessages()
+                });
+            }
+        );
+    }
+
+    applyMessageChanges(snapshot) {
+        const container = this.dom.messagesContainer;
+        const emptyState = container.querySelector(".chat-loading");
+        if (emptyState) emptyState.remove();
+
+        const wasNearBottom =
+            container.scrollHeight - container.scrollTop - container.clientHeight < 120;
+
+        snapshot.docChanges().forEach((change) => {
+            const data = change.doc.data();
+            const id = change.doc.id;
+            const isPending = change.doc.metadata.hasPendingWrites;
+
+            if (change.type === "removed") {
+                this.messageNodesById.get(id)?.remove();
+                this.messageNodesById.delete(id);
+                return;
+            }
+
+            const node = this.renderMessageNode(data, id, isPending);
+            this.messageNodesById.set(id, node);
+
+            const referenceNode = container.children[change.newIndex] || null;
+            if (change.type === "added") {
+                container.insertBefore(node, referenceNode);
+            } else if (change.type === "modified") {
+                const existing = container.children[change.oldIndex];
+                existing?.remove();
+                container.insertBefore(node, container.children[change.newIndex] || null);
+            }
+        });
+
+        if (snapshot.empty) {
+            container.replaceChildren(
+                el("div", { class: "chat-loading", text: "Say hi to start the conversation!" })
+            );
         }
 
+        if (wasNearBottom) {
+            container.scrollTop = container.scrollHeight;
+        }
+    }
+
+    renderMessageNode(msg, messageId, isPending) {
+        const isMine = msg.senderId === this.currentUser.uid;
+        if (msg.type === "card") {
+            return this.renderCardMessage(msg, messageId, isMine, isPending);
+        }
+        return this.renderTextMessage(msg, messageId, isMine, isPending);
+    }
+
+    renderTextMessage(msg, messageId, isMine, isPending) {
+        const wrapper = el("div", {
+            class: `message ${isMine ? "message-sent" : "message-received"}`,
+            "data-message-id": messageId
+        });
+        wrapper.style.opacity = isPending ? "0.6" : "1";
+
+        const bubble = el("div", { class: "message-bubble" });
+        bubble.textContent = msg.text || ""; // textContent, never innerHTML
+        wrapper.appendChild(bubble);
+        return wrapper;
+    }
+
+    renderCardMessage(msg, messageId, isMine, isPending) {
+        const wrapper = el("div", {
+            class: `message ${isMine ? "message-sent" : "message-received"}`,
+            "data-message-id": messageId
+        });
+        wrapper.style.opacity = isPending ? "0.6" : "1";
+
+        const bubble = el("div", { class: "message-bubble card-message" });
+        bubble.style.cursor = "pointer";
+
+        const img = el("img", { class: "chat-card-img", alt: `${msg.rarity} Card` });
+        setImageWithFallback(img, getCardImage(msg.cardId));
+
+        const info = el("div", { class: "card-msg-info" }, [
+            el("strong", { text: `${msg.rarity} Card #${msg.cardId}` }),
+            el("span", { text: `Quantity: ${msg.quantity || 1}` })
+        ]);
+
+        bubble.append(img, info);
+        bubble.addEventListener("click", () => this.openCardViewer(msg.cardId));
+        wrapper.appendChild(bubble);
+        return wrapper;
+    }
+
+    async handleSendMessage(event) {
+        event.preventDefault();
+        const input = this.dom.messageInput;
+        const text = input.value.trim();
+        if (!text) return;
+
+        input.value = "";
+
+        try {
+            await addDoc(FirestoreRefs.getMessagesRef(this.chatId), {
+                senderId: this.currentUser.uid,
+                receiverId: this.otherUserUid,
+                text,
+                type: "text",
+                timestamp: serverTimestamp()
+            });
+            await this.touchChatSummary(text);
+        } catch (error) {
+            console.error("Error sending message:", error);
+            input.value = text; // give the text back so nothing is lost
+            Toast.error("Message failed to send.", {
+                actionLabel: "Retry",
+                onAction: () => this.handleSendMessage(event)
+            });
+        }
+    }
+
+    async touchChatSummary(lastMessage) {
+        await setDoc(FirestoreRefs.getChatRef(this.chatId), {
+            lastMessage,
+            lastSenderId: this.currentUser.uid,
+            timestamp: serverTimestamp(),
+            participants: [this.currentUser.uid, this.otherUserUid]
+        }, { merge: true });
+    }
+
+    // ---------------------------------------------------------------------
+    // INVENTORY (single realtime listener — created once, unsubscribed on teardown)
+    // ---------------------------------------------------------------------
+
+    async openCardSelector() {
+        const isFriend = await this.verifyFriendship();
+        if (!isFriend) {
+            this.showNotFriendPopup();
+            return;
+        }
+
+        this.show(this.dom.cardSelectorModal, "flex");
+
+        if (!this.unsubscribeInventory) {
+            this.startInventoryListener();
+        }
+    }
+
+    /**
+     * #notFriendPopup is styled via a `.show` class (it animates opacity in/out),
+     * not a plain display:none/flex toggle like the other modals — so it needs
+     * its own show/hide instead of the generic this.show()/this.hide() helpers.
+     */
+    showNotFriendPopup() {
+        const popup = this.dom.notFriendPopup;
+        if (!popup) return;
+        popup.classList.add("show");
+        clearTimeout(this._notFriendPopupTimer);
+        this._notFriendPopupTimer = setTimeout(() => popup.classList.remove("show"), 3500);
+    }
+
+    /**
+     * Friendship check. UrjaRise's Growth Friends system records the
+     * connection on at least one side's friendsList, not necessarily both,
+     * so this checks the current user's own list only — matching the
+     * original app behavior. (A stricter two-way check was tried here
+     * previously and broke this button for exactly this reason.)
+     */
+    /**
+     * Friendship in UrjaRise is stored as a subcollection document, not an
+     * array field: users/{uid}/growthFriends/{friendUid}. Its existence is
+     * the source of truth — this matches how user-profile.js checks it.
+     */
+    async verifyFriendship() {
+        try {
+            const friendSnap = await getDoc(
+                FirestoreRefs.getGrowthFriendRef(this.currentUser.uid, this.otherUserUid)
+            );
+            return friendSnap.exists();
+        } catch (error) {
+            console.error("Friend verification failed:", error);
+            Toast.error("Couldn't verify friendship status. Check console for details.");
+            return false;
+        }
+    }
+
+    startInventoryListener() {
+        if (!this.dom.cardGrid) return;
+
+        this.dom.cardGrid.replaceChildren(
+            el("div", { class: "chat-loading", text: "Loading inventory..." })
+        );
+
+        this.unsubscribeInventory = onSnapshot(
+            FirestoreRefs.getInventoryRef(this.currentUser.uid),
+            (snapshot) => {
+                this.inventory = snapshot.docs
+                    .map((d) => d.data())
+                    .filter((card) => (card.quantity ?? 0) > 0)
+                    .sort((a, b) => {
+                        const weightDiff = (RARITY_WEIGHT[a.rarity] ?? 99) - (RARITY_WEIGHT[b.rarity] ?? 99);
+                        return weightDiff !== 0 ? weightDiff : a.id - b.id;
+                    });
+
+                this.renderInventory();
+            },
+            (error) => {
+                console.error("Inventory listener error:", error);
+                this.dom.cardGrid.replaceChildren(
+                    el("div", { class: "chat-loading", text: "Failed to load inventory." })
+                );
+                Toast.error("Couldn't load your cards.", {
+                    actionLabel: "Retry",
+                    onAction: () => {
+                        this.unsubscribeInventory?.();
+                        this.unsubscribeInventory = null;
+                        this.startInventoryListener();
+                    }
+                });
+            }
+        );
+    }
+
+    renderInventory() {
+        const grid = this.dom.cardGrid;
+        grid.replaceChildren();
+
+        if (this.inventory.length === 0) {
+            grid.appendChild(el("p", {
+                class: "inventory-empty",
+                text: "Your inventory is empty."
+            }));
+            return;
+        }
+
+        this.inventory.forEach((card) => grid.appendChild(this.renderInventoryCard(card)));
+    }
+
+    renderInventoryCard(card) {
+        const img = el("img", { alt: `Card ${card.id}` });
+        setImageWithFallback(img, getCardImage(card.id));
+
+        const details = el("div", { class: "card-details" }, [
+            el("span", { class: `card-rarity ${String(card.rarity).toLowerCase()}`, text: card.rarity }),
+            el("span", { class: "card-id", text: `#${card.id}` }),
+            el("span", { class: "card-qty", text: `Owned ×${card.quantity}` })
+        ]);
+
+        const transferBtn = el("button", { class: "transfer-init-btn", text: "Transfer" });
+        transferBtn.addEventListener("click", () => this.openQuantityModal(card));
+
+        return el("div", { class: "inventory-card" }, [img, details, transferBtn]);
+    }
+
+    // ---------------------------------------------------------------------
+    // QUANTITY SELECTOR
+    // ---------------------------------------------------------------------
+
+    openQuantityModal(card) {
+        this.selectedCard = card;
+        this.selectedQuantity = 1;
+
+        const d = this.dom;
+        if (d.quantityCardTitle) d.quantityCardTitle.textContent = `${card.rarity} Card #${card.id}`;
+        if (d.quantityCardImage) setImageWithFallback(d.quantityCardImage, getCardImage(card.id));
+        if (d.quantityValue) d.quantityValue.textContent = String(this.selectedQuantity);
+
+        this.show(d.quantityModal, "flex");
+    }
+
+    closeQuantityModal() {
+        this.hide(this.dom.quantityModal);
+        this.selectedCard = null;
+    }
+
+    stepQuantity(delta) {
+        if (!this.selectedCard) return;
+        const next = this.selectedQuantity + delta;
+        if (next < 1 || next > this.selectedCard.quantity) return;
+        this.selectedQuantity = next;
+        if (this.dom.quantityValue) this.dom.quantityValue.textContent = String(next);
+    }
+
+    // ---------------------------------------------------------------------
+    // TRANSFER (single atomic Firestore transaction)
+    // ---------------------------------------------------------------------
+
+    async handleConfirmTransfer() {
+        if (this.isTransferring || !this.selectedCard) return;
+
+        this.isTransferring = true;
+        this.setTransferButtonLoading(true);
+
+        try {
+            await this.executeTransferTransaction(this.selectedCard, this.selectedQuantity);
+            Toast.success("Card transferred successfully!");
+            this.hide(this.dom.quantityModal);
+            this.hide(this.dom.cardSelectorModal);
+        } catch (error) {
+            console.error("Transfer failed:", error);
+            Toast.error(error.message || "Transfer failed. Please try again.");
+        } finally {
+            this.setTransferButtonLoading(false);
+            this.isTransferring = false;
+            this.selectedCard = null;
+        }
+    }
+
+    setTransferButtonLoading(isLoading) {
+        const btn = this.dom.confirmTransfer;
+        if (!btn) return;
+        btn.disabled = isLoading;
+        btn.textContent = isLoading ? "Sending..." : "Send";
+    }
+
+    async executeTransferTransaction(card, transferQty) {
+        const senderUid = this.currentUser.uid;
+        const receiverUid = this.otherUserUid;
+
+        if (senderUid === receiverUid) {
+            throw new Error("You cannot transfer a card to yourself.");
+        }
+        if (!Number.isInteger(transferQty) || transferQty < 1) {
+            throw new Error("Transfer quantity must be a positive whole number.");
+        }
+
+        const senderCardRef = FirestoreRefs.getCardRef(senderUid, card.id);
+        const receiverCardRef = FirestoreRefs.getCardRef(receiverUid, card.id);
+        const receiverUserRef = FirestoreRefs.getUserRef(receiverUid);
+        const messagesRef = FirestoreRefs.getMessagesRef(this.chatId);
+        const chatRef = FirestoreRefs.getChatRef(this.chatId);
+
+        await runTransaction(db, async (transaction) => {
+            // ---- Reads (must happen before any writes in a transaction) -----
+            const [receiverUserSnap, senderCardSnap, receiverCardSnap] = await Promise.all([
+                transaction.get(receiverUserRef),
+                transaction.get(senderCardRef),
+                transaction.get(receiverCardRef)
+            ]);
+
+            if (!receiverUserSnap.exists()) {
+                throw new Error("Recipient account no longer exists.");
+            }
+            if (!senderCardSnap.exists()) {
+                throw new Error("You no longer own this card.");
+            }
+
+            const senderData = senderCardSnap.data();
+            if (!senderData.id || !senderData.rarity) {
+                throw new Error("Card record is corrupted.");
+            }
+            if ((senderData.quantity ?? 0) < transferQty) {
+                throw new Error("You don't have enough of this card.");
+            }
+
+            // ---- Writes -------------------------------------------------------
+            const remaining = senderData.quantity - transferQty;
+            if (remaining <= 0) {
+                transaction.delete(senderCardRef);
+            } else {
+                transaction.update(senderCardRef, { quantity: remaining });
+            }
+
+            if (receiverCardSnap.exists()) {
+                transaction.update(receiverCardRef, {
+                    quantity: receiverCardSnap.data().quantity + transferQty,
+                    lastTransferredAt: serverTimestamp(),
+                    ownerHistory: arrayUnion(receiverUid)
+                });
+            } else {
+                transaction.set(receiverCardRef, {
+                    id: senderData.id,
+                    rarity: senderData.rarity,
+                    quantity: transferQty,
+                    ownerHistory: [senderUid, receiverUid],
+                    acquiredAt: serverTimestamp(),
+                    lastTransferredAt: serverTimestamp()
+                });
+            }
+
+            transaction.set(doc(messagesRef), {
+                senderId: senderUid,
+                receiverId: receiverUid,
+                cardId: senderData.id,
+                rarity: senderData.rarity,
+                quantity: transferQty,
+                type: "card",
+                timestamp: serverTimestamp()
+            });
+
+            transaction.set(chatRef, {
+                lastMessage: `Transferred ${transferQty}x Card #${senderData.id}`,
+                lastSenderId: senderUid,
+                timestamp: serverTimestamp(),
+                participants: [senderUid, receiverUid]
+            }, { merge: true });
+        });
+    }
+
+    // ---------------------------------------------------------------------
+    // CARD VIEWER
+    // ---------------------------------------------------------------------
+
+    openCardViewer(cardId) {
+        const { enlargedCardContainer, cardViewerModal } = this.dom;
+        if (!enlargedCardContainer || !cardViewerModal) return;
+
+        enlargedCardContainer.replaceChildren();
+        const img = el("img", { alt: "Enlarged card display" });
+        setImageWithFallback(img, getCardImage(cardId), "https://via.placeholder.com/300");
+        enlargedCardContainer.appendChild(img);
+
+        this.show(cardViewerModal, "flex");
+    }
+
+    // ---------------------------------------------------------------------
+    // SMALL DOM HELPERS
+    // ---------------------------------------------------------------------
+
+    show(node, display = "flex") {
+        if (node) node.style.display = display;
+    }
+
+    hide(node) {
+        if (node) node.style.display = "none";
     }
 }
-// ==========================================
-// 12. ENLARGED CARD VIEWER (UNCHANGED INTERFACE)
-// ==========================================
-window.showEnlargedCard = function(jsonStr) {
-    if (!enlargedCardContainer || !cardViewerModal) return;
-    const card = JSON.parse(jsonStr);
-    const rc = (card.rarity || "common").toLowerCase();
-    enlargedCardContainer.innerHTML = `
-        <div class="enlarged-card rarity-${rc}">
-            <div class="enlarged-shimmer-overlay"></div>
-            <div class="mascot">${card.emoji || card.mascot || "🎴"}</div>
-            <div class="title">${card.name}</div>
-            <div class="card-badge">${card.rarity}</div>
-            <div class="message">"${card.description || card.message || "A treasured Urja collectible."}"</div>
-            <div class="meta">
-🎁 Sent by <strong>${card.sender}</strong><br>
-📅 ${card.date}
-</div>
-        </div>
-    `;
-    cardViewerModal.style.display = "flex";
-};
 
-// ==========================================
-// 13. MODAL CONTROLS (UNCHANGED)
-// ==========================================
-if (growthCardBtn) {
-    growthCardBtn.onclick = () => {
-        if (!isGrowthFriendGlobal) {
-            if (notFriendPopup) {
-                notFriendPopup.classList.add("show");
-                setTimeout(() => notFriendPopup.classList.remove("show"), 3500);
-            }
-        } else {
-            renderCardGrid();
-            if (cardSelectorModal) cardSelectorModal.style.display = "flex";
-        }
-    };
-}
+// =============================================================================
+// BOOTSTRAP
+// =============================================================================
 
-if (closePopupBtn) closePopupBtn.onclick = () => notFriendPopup.classList.remove("show");
-if (closeCardModalBtn) closeCardModalBtn.onclick = () => { cardSelectorModal.style.display = "none"; };
-if (closeViewerBtn) closeViewerBtn.onclick = () => { cardViewerModal.style.display = "none"; };
-
-window.addEventListener("click", (e) => {
-    if (e.target === cardSelectorModal) cardSelectorModal.style.display = "none";
-    if (e.target === cardViewerModal) cardViewerModal.style.display = "none";
-});
-
-// ==========================================
-// 14. AUTH
-// ==========================================
-onAuthStateChanged(auth, (user) => {
-    if (!user) { window.location.href = "index.html"; return; }
-    currentUser = user;
-    setupFutureMessageControls();
-    loadTargetUserHeader();
-    listenToMessages();
+window.addEventListener("DOMContentLoaded", () => {
+    const chatApp = new ChatApp();
+    chatApp.init();
 });

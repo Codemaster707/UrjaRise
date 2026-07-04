@@ -480,9 +480,9 @@ body {
 .card-modal-content {
     background: rgba(255, 255, 255, 0.85);
     border: 1px solid rgba(255, 255, 255, 0.6);
-    width: 90%;
-    max-width: 480px;
-    height: 72vh;
+    width: 95%;
+    max-width: 500px;
+    height: 75vh;
     border-radius: 36px;
     display: flex;
     flex-direction: column;
@@ -512,13 +512,89 @@ body {
     letter-spacing: -0.4px;
 }
 
+/* Optimized Inventory Grid Layer */
 .card-grid {
-    padding: 24px;
+    padding: 16px;
     overflow-y: auto;
     display: grid;
-    grid-template-columns: repeat(2, 1fr);
-    gap: 18px;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 12px;
     background: rgba(255, 255, 255, 0.2);
+}
+
+.inventory-card {
+    background: rgba(255, 255, 255, 0.9);
+    border-radius: 16px;
+    padding: 10px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+    border: 1px solid rgba(0, 0, 0, 0.03);
+    transition: transform 0.2s cubic-bezier(0.2, 1, 0.2, 1);
+}
+
+.inventory-card:hover {
+    transform: translateY(-2px);
+}
+
+.inventory-card img {
+    width: 55px;
+    height: 55px;
+    object-fit: cover;
+    border-radius: 12px;
+    margin-bottom: 6px;
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.08);
+}
+
+.card-details {
+    display: flex;
+    flex-direction: column;
+    gap: 1px;
+    margin-bottom: 6px;
+    width: 100%;
+}
+
+.card-rarity {
+    font-size: 0.65rem;
+    font-weight: 800;
+    text-transform: uppercase;
+    letter-spacing: 0.6px;
+    background: linear-gradient(45deg, #ee2a7b, #6228d7);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+}
+
+.card-id {
+    font-size: 0.8rem;
+    font-weight: 800;
+    color: #1c1c1e;
+    letter-spacing: -0.2px;
+}
+
+.card-qty {
+    font-size: 0.65rem;
+    color: var(--text-muted);
+    font-weight: 600;
+}
+
+.transfer-init-btn {
+    width: 100%;
+    background: linear-gradient(135deg, #ee2a7b 0%, #bc1888 100%);
+    color: #ffffff;
+    border: none;
+    padding: 6px 0;
+    border-radius: 8px;
+    font-size: 0.72rem;
+    font-weight: 700;
+    cursor: pointer;
+    box-shadow: 0 2px 6px rgba(188, 24, 136, 0.2);
+    transition: opacity 0.2s;
+}
+
+.transfer-init-btn:hover {
+    opacity: 0.9;
 }
 
 /* ========================================================
@@ -757,4 +833,301 @@ body {
     opacity: 0.9;
     font-weight: 500;
     letter-spacing: 0.1px;
+}
+/* ========================================================
+   12. GROWTH CARD INVENTORY LAYOUT FIXES
+   ======================================================== */
+.inventory-card {
+    background: #ffffff;
+    border-radius: 18px;
+    padding: 12px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 8px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+    border: 1px solid rgba(0, 0, 0, 0.05);
+}
+
+.inventory-card img {
+    width: 100%;
+    aspect-ratio: 1;
+    object-fit: cover;
+    border-radius: 12px;
+    box-shadow: 0 2px 6px rgba(0,0,0,0.06);
+}
+
+.card-details {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 2px;
+    width: 100%;
+}
+
+.card-rarity {
+    font-size: 0.65rem;
+    font-weight: 800;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    padding: 2px 8px;
+    border-radius: 20px;
+    color: #fff;
+    background: var(--gradient-common);
+}
+.card-rarity.uncommon { background: var(--gradient-uncommon); }
+.card-rarity.rare { background: var(--gradient-rare); }
+.card-rarity.epic { background: var(--gradient-epic); }
+.card-rarity.legendary { background: var(--gradient-legendary); }
+.card-rarity.mythic { background: var(--gradient-mythic); }
+
+.card-id {
+    font-size: 0.85rem;
+    font-weight: 700;
+    color: var(--text-main);
+}
+
+.card-qty {
+    font-size: 0.75rem;
+    color: var(--text-muted);
+    font-weight: 500;
+}
+
+.transfer-init-btn {
+    width: 100%;
+    padding: 8px;
+    border: none;
+    background: var(--chat-bubble-me);
+    color: #ffffff;
+    border-radius: 10px;
+    font-weight: 700;
+    font-size: 0.85rem;
+    cursor: pointer;
+    transition: transform 0.1s ease, opacity 0.2s;
+}
+
+.transfer-init-btn:hover {
+    opacity: 0.9;
+}
+
+.transfer-init-btn:active {
+    transform: scale(0.96);
+}
+
+.inventory-empty {
+    grid-column: span 2;
+    text-align: center;
+    color: var(--text-muted);
+    font-size: 0.9rem;
+    margin-top: 20px;
+}
+
+/* ========================================================
+   13. QUANTITY MODAL PERFECT RESPONSIVE OVERLAY
+   ======================================================== */
+.quantity-modal {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(255, 255, 255, 0.85);
+    backdrop-filter: blur(12px) saturate(180%);
+    -webkit-backdrop-filter: blur(12px) saturate(180%);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    z-index: 100;
+    animation: modalScaleSpring 0.35s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+}
+
+.quantity-box {
+    background: #ffffff;
+    border-radius: 28px;
+    padding: 24px;
+    width: 85%;
+    max-width: 320px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    box-shadow: 0 20px 45px rgba(0, 0, 0, 0.12);
+    border: 1px solid rgba(0, 0, 0, 0.05);
+    max-height: 90%;
+    overflow-y: auto;
+}
+
+.quantity-box h3 {
+    font-size: 1.1rem;
+    font-weight: 800;
+    margin-bottom: 14px;
+    color: #000000;
+    letter-spacing: -0.2px;
+    text-align: center;
+}
+
+/* Constrains the overflowing image perfectly */
+#quantityCardImage {
+    width: 130px;
+    height: 130px;
+    object-fit: cover;
+    border-radius: 16px;
+    margin-bottom: 18px;
+    box-shadow: 0 8px 20px rgba(0, 0, 0, 0.08);
+    border: 1px solid rgba(0, 0, 0, 0.05);
+}
+
+.quantity-controls {
+    display: flex;
+    align-items: center;
+    gap: 22px;
+    margin-bottom: 22px;
+}
+
+.quantity-controls button {
+    width: 38px;
+    height: 38px;
+    border-radius: 50%;
+    border: 1px solid #e5e5ea;
+    background: #f2f2f7;
+    font-size: 1.2rem;
+    font-weight: 600;
+    color: var(--text-main);
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: background-color 0.2s, transform 0.1s;
+    user-select: none;
+}
+
+.quantity-controls button:hover {
+    background-color: #d1d1d6;
+}
+.quantity-controls button:active {
+    transform: scale(0.92);
+}
+
+#quantityValue {
+    font-size: 1.6rem;
+    font-weight: 750;
+    min-width: 32px;
+    text-align: center;
+    color: var(--text-main);
+}
+
+.quantity-buttons {
+    display: flex;
+    gap: 12px;
+    width: 100%;
+}
+
+.quantity-buttons button {
+    flex: 1;
+    padding: 12px;
+    border-radius: 14px;
+    font-size: 0.95rem;
+    font-weight: 700;
+    cursor: pointer;
+    border: none;
+    transition: opacity 0.2s, transform 0.1s;
+}
+
+#cancelTransfer {
+    background-color: #f2f2f7;
+    color: #48484a;
+}
+#cancelTransfer:hover {
+    background-color: #e5e5ea;
+}
+
+#confirmTransfer {
+    background: var(--chat-bubble-me);
+    color: #ffffff;
+}
+#confirmTransfer:hover {
+    opacity: 0.95;
+}
+#confirmTransfer:active {
+    transform: scale(0.97);
+}
+#confirmTransfer:disabled {
+    background: var(--text-muted);
+    cursor: not-allowed;
+    opacity: 0.5;
+}
+/* ========================================================
+   14. FIX FOR SENT CARDS IN THE CHAT FEED (PREVENT ENLARGING)
+   ======================================================== */
+.message-bubble.card-message {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 10px 14px;
+    background: #ffffff !important; /* Keep a clean container background */
+    border: 1px solid rgba(0, 0, 0, 0.06);
+    border-radius: 18px;
+    max-width: 250px; /* Constrain overall message width */
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.04);
+}
+
+/* Force the image to stay small and fully visible inside the chat bubble */
+.chat-card-img {
+    width: 50px !important;
+    height: 50px !important;
+    min-width: 50px;
+    min-height: 50px;
+    object-fit: contain; /* Ensures the full card image is visible without truncation */
+    border-radius: 8px;
+    background-color: #f2f2f7; /* Subtle backdrop fill */
+    border: 1px solid rgba(0, 0, 0, 0.04);
+}
+
+/* Refine text alignment inside the chat bubble cards */
+.card-msg-info {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    text-align: left;
+    overflow: hidden;
+}
+
+.card-msg-info strong {
+    font-size: 0.88rem;
+    color: #1c1c1e;
+    font-weight: 700;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.card-msg-info span {
+    font-size: 0.75rem;
+    color: #8e8e93;
+    font-weight: 500;
+    margin-top: 2px;
+}
+
+/* Alignment corrections for sent vs received chat bubbles containing cards */
+.message-sent .message-bubble.card-message {
+    align-self: flex-end;
+    border-bottom-right-radius: 4px;
+}
+
+.message-received .message-bubble.card-message {
+    align-self: flex-start;
+    border-bottom-left-radius: 4px;
+}
+
+/* ========================================================
+   15. REFINEMENT FOR THE INVENTORY TAB GRID IMAGES
+   ======================================================== */
+.inventory-card img {
+    width: 60px !important;       /* Explicit compact width */
+    height: 60px !important;      /* Explicit compact height */
+    object-fit: contain;          /* Displays full asset profile without cropping */
+    background-color: #fafafa;
+    border-radius: 10px;
+    margin-bottom: 4px;
+    border: 1px solid rgba(0, 0, 0, 0.04);
+    display: block;
 }

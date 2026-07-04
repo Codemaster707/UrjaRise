@@ -1,0 +1,336 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+
+<meta charset="UTF-8">
+
+<meta name="viewport"
+content="width=device-width, initial-scale=1.0">
+
+<title>Urja Rise 3D Card</title>
+
+<style>
+
+*{
+margin:0;
+padding:0;
+box-sizing:border-box;
+}
+
+html,
+body{
+
+width:100%;
+height:100%;
+
+overflow:hidden;
+
+background:#2b0a4d;
+
+display:flex;
+
+justify-content:center;
+
+align-items:center;
+
+touch-action:none;
+
+font-family:Arial,sans-serif;
+
+}
+
+.scene{
+
+width:320px;
+
+height:500px;
+
+perspective:1800px;
+
+}
+
+.card{
+
+position:relative;
+
+width:100%;
+
+height:100%;
+
+transform-style:preserve-3d;
+
+cursor:grab;
+
+}
+
+.face{
+
+position:absolute;
+
+width:100%;
+
+height:100%;
+
+overflow:hidden;
+
+backface-visibility:hidden;
+
+border-radius:24px;
+
+}
+
+.face img{
+
+width:100%;
+
+height:100%;
+
+display:block;
+
+object-fit:cover;
+
+pointer-events:none;
+
+user-select:none;
+
+-webkit-user-drag:none;
+
+}
+
+.front{
+
+transform:rotateY(0deg);
+
+}
+
+.back{
+
+transform:rotateY(180deg);
+
+}
+
+.instructions{
+
+position:absolute;
+
+bottom:20px;
+
+left:50%;
+
+transform:translateX(-50%);
+
+color:white;
+
+font-size:18px;
+
+letter-spacing:1px;
+
+opacity:.85;
+
+}
+</style>
+
+</head>
+
+<body>
+
+<div class="scene">
+
+<div class="card" id="card">
+
+<div class="face front">
+
+<img
+src="card82A.jpg"
+alt="Front Card">
+
+</div>
+
+<div class="face back">
+
+<img
+src="Mythical.jpg"
+alt="Back Card">
+
+</div>
+
+</div>
+
+</div>
+
+<div class="instructions">
+
+Swipe • Drag • Scroll
+
+</div>
+
+<script>
+
+const card =
+document.getElementById("card");
+
+let targetX = -10;
+let targetY = 20;
+
+let currentX = -10;
+let currentY = 20;
+
+let dragging = false;
+
+let startX = 0;
+let startY = 0;
+
+const smooth = 0.18;
+
+function animate(){
+
+currentX +=
+(targetX-currentX)*smooth;
+
+currentY +=
+(targetY-currentY)*smooth;
+
+card.style.transform =
+`
+rotateX(${currentX}deg)
+rotateY(${currentY}deg)
+`;
+
+requestAnimationFrame(animate);
+
+}
+
+animate();
+/* ---------- TOUCH SUPPORT ---------- */
+
+card.addEventListener("touchstart",(e)=>{
+
+dragging=true;
+
+startX=e.touches[0].clientX;
+startY=e.touches[0].clientY;
+
+},{passive:true});
+
+card.addEventListener("touchmove",(e)=>{
+
+if(!dragging) return;
+
+const x=e.touches[0].clientX;
+const y=e.touches[0].clientY;
+
+const dx=x-startX;
+const dy=y-startY;
+
+targetY+=dx*0.35;
+targetX-=dy*0.35;
+
+/* Limit vertical tilt */
+
+targetX=Math.max(-60,Math.min(60,targetX));
+
+startX=x;
+startY=y;
+
+e.preventDefault();
+
+},{passive:false});
+
+card.addEventListener("touchend",()=>{
+
+dragging=false;
+
+});
+
+/* ---------- MOUSE SUPPORT ---------- */
+
+card.addEventListener("mousedown",(e)=>{
+
+dragging=true;
+
+startX=e.clientX;
+startY=e.clientY;
+
+card.style.cursor="grabbing";
+
+});
+
+window.addEventListener("mousemove",(e)=>{
+
+if(!dragging) return;
+
+const dx=e.clientX-startX;
+const dy=e.clientY-startY;
+
+targetY+=dx*0.35;
+targetX-=dy*0.35;
+
+targetX=Math.max(-60,Math.min(60,targetX));
+
+startX=e.clientX;
+startY=e.clientY;
+
+});
+
+window.addEventListener("mouseup",()=>{
+
+dragging=false;
+
+card.style.cursor="grab";
+
+});
+/* ---------- MOUSE WHEEL ---------- */
+
+window.addEventListener("wheel",(e)=>{
+
+targetX += e.deltaY * 0.05;
+
+targetX = Math.max(-60, Math.min(60, targetX));
+
+});
+
+/* ---------- DOUBLE TAP TO RESET ---------- */
+
+let lastTap = 0;
+
+card.addEventListener("touchend",()=>{
+
+const now = Date.now();
+
+if(now - lastTap < 300){
+
+targetX = -10;
+targetY = 20;
+
+}
+
+lastTap = now;
+
+});
+
+/* ---------- AUTO IDLE MOTION ---------- */
+
+let idle = 0;
+
+function idleAnimation(){
+
+if(!dragging){
+
+idle += 0.01;
+
+targetY += Math.sin(idle) * 0.02;
+
+}
+
+requestAnimationFrame(idleAnimation);
+
+}
+
+idleAnimation();
+
+</script>
+
+</body>
+
+</html>
+

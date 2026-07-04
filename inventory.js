@@ -13,7 +13,6 @@ import {
     runTransaction
 } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
 
-// FIXED: Consolidated all imports from cards-catalog.js cleanly at the top!
 import { STARTER_PACK_CARDS, RARITY_WEIGHT, FULL_CARD_CATALOG } from "./cards-catalog.js";
 
 // ==========================================
@@ -57,6 +56,26 @@ const goToStoreBtn = document.getElementById("goToStoreBtn");
 
 if (backBtn) backBtn.onclick = () => window.location.href = "feed.html";
 if (goToStoreBtn) goToStoreBtn.onclick = () => window.location.href = "store.html";
+
+// Universal helper to guarantee correct numerical digits extraction
+function cleanNumericId(rawId) {
+    const cleaned = String(rawId).replace(/\D/g, "");
+    return cleaned ? parseInt(cleaned, 10) : rawId;
+}
+
+// Universal image path builder with fallback protection
+function getCardImageUrl(rawId) {
+    const num = String(rawId).replace(/\D/g, "");
+    return `card/card${num}A.jpg`;
+}
+
+// Fallback logic if relative paths get lost in subdirectories
+function handleImageLoadError(imgElement, num) {
+    if (!imgElement.getAttribute('data-tried-fallback')) {
+        imgElement.setAttribute('data-tried-fallback', 'true');
+        imgElement.src = `/card/card${num}A.jpg`; // Try root absolute path
+    }
+}
 
 // ==========================================
 // 4. STARTER PACK — CHECK & TRIGGER
@@ -159,15 +178,22 @@ async function startPackOpening() {
 function revealSingleCard(container, card) {
     return new Promise(resolve => {
         const rc = card.rarity.toLowerCase();
+        const numericId = cleanNumericId(card.id);
+        const imgUrl = getCardImageUrl(card.id);
         const el = document.createElement("div");
         el.className = `reveal-card ${rc} reveal-hidden`;
         el.innerHTML = `
             <div class="reveal-card-inner">
                 <div class="reveal-card-shine"></div>
-                <div class="reveal-card-emoji">${card.emoji}</div>
-                <div class="reveal-card-name">${card.name}</div>
-                <div class="reveal-card-rarity rarity-${rc}">${card.rarity}</div>
-                <div class="reveal-card-desc">${card.description}</div>
+                <img
+                    class="card-image"
+                    src="${imgUrl}"
+                    onerror="this.onerror=null; this.setAttribute('data-tried-fallback', 'true'); this.src='/${imgUrl}';"
+                    alt="Card ${numericId}">
+                <div class="reveal-card-name">
+                    Card #${numericId}
+                </div>
+                <div class="reveal-card-rarity rarity-${rc}">${card.rarity}</div>  
             </div>
         `;
         container.appendChild(el);
@@ -196,13 +222,11 @@ async function saveStarterPackToFirestore(btn) {
             }
 
             for (const card of STARTER_PACK_CARDS) {
-                const cardRef = doc(db, "users", currentUser.uid, "cards", card.id);
+                const numericId = cleanNumericId(card.id);
+                const cardRef = doc(db, "users", currentUser.uid, "cards", String(numericId));
                 tx.set(cardRef, {
-                    id: card.id,
-                    name: card.name,
-                    emoji: card.emoji,
+                    id: numericId,
                     rarity: card.rarity,
-                    description: card.description,
                     quantity: 1,
                     acquiredAt: serverTimestamp(),
                     source: "starter_pack",
@@ -248,7 +272,11 @@ function loadInventory() {
 
     onSnapshot(query(collection(db, "users", currentUser.uid, "cards")), (snapshot) => {
         allCards = [];
-        snapshot.forEach(d => allCards.push({ id: d.id, ...d.data() }));
+        snapshot.forEach(d => {
+            const data = d.data();
+            const rawId = data.id || d.id;
+            allCards.push({ ...data, id: cleanNumericId(rawId) });
+        });
         loadingIndicator.style.display = "none";
         updateStatistics();
         renderCards();
@@ -264,15 +292,22 @@ function loadInventory() {
 function getProcessedCards() {
     let cards = [...allCards];
     const search = searchInput.value.toLowerCase().trim();
-    if (search) cards = cards.filter(c => c.name.toLowerCase().includes(search));
+    if (search) {
+        cards = cards.filter(c => String(c.id).includes(search));
+    }
     const filter = filterSelect.value;
-    if (filter !== "All") cards = cards.filter(c => c.rarity.toLowerCase() === filter.toLowerCase());
+    if (filter !== "All") {
+        cards = cards.filter(c => (c.rarity || "common").toLowerCase() === filter.toLowerCase());
+    }
     const sort = sortSelect.value;
     cards.sort((a, b) => {
         switch (sort) {
-            case "alphabetical": return a.name.localeCompare(b.name);
-            case "quantity": return (b.quantity || 1) - (a.quantity || 1);
-            case "rarity": return ((RARITY_WEIGHT[(b.rarity || "common").toLowerCase()] || 0) - (RARITY_WEIGHT[(a.rarity || "common").toLowerCase()] || 0) || 0) - (RARITY_WEIGHT[a.rarity.toLowerCase()] || 0);
+            case "alphabetical":
+                return a.id - b.id;
+            case "quantity": 
+                return (b.quantity || 1) - (a.quantity || 1);
+            case "rarity": 
+                return (RARITY_WEIGHT[(b.rarity || "common").toLowerCase()] || 0) - (RARITY_WEIGHT[(a.rarity || "common").toLowerCase()] || 0);
             default: {
                 const tA = a.acquiredAt?.toDate ? a.acquiredAt.toDate().getTime() : 0;
                 const tB = b.acquiredAt?.toDate ? b.acquiredAt.toDate().getTime() : 0;
@@ -292,20 +327,23 @@ function renderCards() {
         cardGrid.innerHTML = `<div class="empty-state" style="grid-column:1/-1"><h3>No cards match your filter.</h3></div>`;
         return;
     }
-    cards.sort((a,b)=> (RARITY_WEIGHT[(b.rarity || "common").toLowerCase()]||0) - (RARITY_WEIGHT[(a.rarity || "common").toLowerCase()]||0));
     cards.forEach(card => {
         const qty = card.quantity || 1;
         const rc = (card.rarity || "common").toLowerCase();
+        const numericId = cleanNumericId(card.id);
+        const imgUrl = getCardImageUrl(card.id);
         const el = document.createElement("div");
         el.className = `urja-card ${rc}`;
         el.innerHTML = `
-            <div class="card-inner">
-                <div class="card-qty-badge">Owned ×${qty}</div>
-                <div class="card-emoji">${card.emoji || "🎴"}</div>
-                <h3 class="card-name">${card.name || "Unknown"}</h3>
-                <p class="card-desc">${card.description || "A mysterious Urja collectible."}</p>
-                <div class="card-rarity rarity-${rc}">${card.rarity || "Common"}</div>
-            </div>
+            <div class="card-qty-badge">x${qty}</div>
+            <img
+                class="card-image"
+                src="${imgUrl}"
+                onerror="this.onerror=null; this.setAttribute('data-tried-fallback', 'true'); this.src='/${imgUrl}';"
+                alt="Card ${numericId}"
+                loading="lazy">
+            <h3 class="card-name">Card #${numericId}</h3>
+            <div class="card-rarity rarity-${rc}">${card.rarity || "Common"}</div>
         `;
         cardGrid.appendChild(el);
     });
