@@ -272,7 +272,7 @@ async function handlePackPurchaseSequence(packSpec) {
     try {
         const idToken = await auth.currentUser.getIdToken(true);
 
-        const response = await fetch("urjarise-backend-production.up.railway.app", { 
+        const response = await fetch("https://urjarise-backend-production.up.railway.app", { 
             method: "POST",
             headers: {
                 "Content-Type": "application/json",
