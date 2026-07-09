@@ -274,7 +274,7 @@ async function handlePackPurchaseSequence(packSpec) {
 
         // FIXED: Added the specific API endpoint. 
         // ⚠️ IMPORTANT: Change "/api/buy-pack" to your actual backend route! ⚠️
-        const response = await fetch("https://urjarise-backend-production.up.railway.app/buyPack", { 
+        const response = await fetch("https://urjarise-backend-production.up.railway.app//buyPack", { 
             method: "POST",
             headers: {
                 "Content-Type": "application/json",
