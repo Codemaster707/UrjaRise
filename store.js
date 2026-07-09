@@ -272,6 +272,8 @@ async function handlePackPurchaseSequence(packSpec) {
     try {
         const idToken = await auth.currentUser.getIdToken(true);
 
+        // FIXED: Added the specific API endpoint. 
+        // ⚠️ IMPORTANT: Change "/api/buy-pack" to your actual backend route! ⚠️
         const response = await fetch("https://urjarise-backend-production.up.railway.app", { 
             method: "POST",
             headers: {
@@ -280,6 +282,17 @@ async function handlePackPurchaseSequence(packSpec) {
             },
             body: JSON.stringify({ packId: packSpec.id })
         });
+
+        // FIXED: Gracefully handle HTML/404 errors before JSON parsing crashes
+        if (!response.ok) {
+            const contentType = response.headers.get("content-type");
+            if (contentType && contentType.indexOf("application/json") !== -1) {
+                const errorData = await response.json();
+                throw new Error(errorData.error || "Server rejected transaction.");
+            } else {
+                throw new Error(`Server returned a ${response.status} error. Make sure your API route is correct.`);
+            }
+        }
 
         const data = await response.json();
 
