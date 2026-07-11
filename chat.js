@@ -4,17 +4,17 @@
  * Vanilla JS (ES Modules) + Firebase Auth + Cloud Firestore. No backend.
  *
  * Firestore layout:
- *   users/{uid}                          { displayName, photoURL, isOnline }
- *   users/{uid}/growthFriends/{friendUid}  (existence = friendship, per user-profile.js)
- *   users/{uid}/cards/{cardId}            { id, rarity, quantity, ownerHistory[], acquiredAt, lastTransferredAt }
- *   chats/{chatId}                       { participants[], lastMessage, lastSenderId, timestamp }
- *   chats/{chatId}/messages/{autoId}
+ * users/{uid}                          { displayName, photoURL, isOnline }
+ * users/{uid}/growthFriends/{friendUid}  (existence = friendship, per user-profile.js)
+ * users/{uid}/cards/{cardId}            { id, rarity, quantity, ownerHistory[], acquiredAt, lastTransferredAt }
+ * chats/{chatId}                       { participants[], lastMessage, lastSenderId, timestamp }
+ * chats/{chatId}/messages/{autoId}
  *
  * chatId is always [uidA, uidB].sort().join("_") — never created twice.
  *
  * NOTE ON CSP: this file intentionally does NOT create a Content-Security-Policy
  * at runtime. Define the policy once in the HTML `<head>`:
- *   <meta http-equiv="Content-Security-Policy" content="...">
+ * <meta http-equiv="Content-Security-Policy" content="...">
  * Generating CSP from JS is unreliable (races the initial paint) and is a
  * security smell — CSP belongs to the document, not the script.
  *
@@ -275,11 +275,20 @@ class ChatApp {
             return;
         }
 
+        // Issue 6 Fix: Extracted from onAuthStateChanged to ensure listeners 
+        // are only bound once on initial DOM load.
+        this.bindEvents();
+
         onAuthStateChanged(auth, (user) => {
             if (!user) {
                 window.location.href = "/auth.html";
                 return;
             }
+            
+            // Issue 6 Fix: Safely clean up any active realtime handles 
+            // before changing auth context state parameters.
+            this.destroy();
+
             this.currentUser = user;
 
             if (this.otherUserUid === this.currentUser.uid) {
@@ -289,7 +298,6 @@ class ChatApp {
             }
 
             this.chatId = buildChatId(this.currentUser.uid, this.otherUserUid);
-            this.bindEvents();
             this.loadOtherUserProfile();
             this.loadMessages();
         });
@@ -354,8 +362,11 @@ class ChatApp {
 
     renderProfile(data) {
         const d = this.dom;
+        // Issue 7 Fix: Added explicit fallback text handling when user 
+        // snapshots return null (e.g., when a user account gets deleted).
         if (!data) {
             if (d.chatDisplayName) d.chatDisplayName.textContent = "Unknown User";
+            if (d.chatStatus) d.chatStatus.textContent = "Account unavailable";
             return;
         }
         if (d.chatDisplayName) d.chatDisplayName.textContent = data.displayName || "User";
@@ -484,6 +495,11 @@ class ChatApp {
         input.value = "";
 
         try {
+            // Issue 3 Fix: The chat summary document containing the participants array 
+            // is initialized/merged FIRST before generating subcollection logs. 
+            // This prevents permission exceptions when security rules process constraints.
+            await this.touchChatSummary(text);
+
             await addDoc(FirestoreRefs.getMessagesRef(this.chatId), {
                 senderId: this.currentUser.uid,
                 receiverId: this.otherUserUid,
@@ -491,7 +507,6 @@ class ChatApp {
                 type: "text",
                 timestamp: serverTimestamp()
             });
-            await this.touchChatSummary(text);
         } catch (error) {
             console.error("Error sending message:", error);
             input.value = text; // give the text back so nothing is lost
@@ -619,6 +634,10 @@ class ChatApp {
         this.inventory.forEach((card) => grid.appendChild(this.renderInventoryCard(card)));
     }
 
+    // ---------------------------------------------------------------------
+    // QUANTITY SELECTOR
+    // ---------------------------------------------------------------------
+
     renderInventoryCard(card) {
         const img = el("img", { alt: `Card ${card.id}` });
         setImageWithFallback(img, getCardImage(card.id));
@@ -634,10 +653,6 @@ class ChatApp {
 
         return el("div", { class: "inventory-card" }, [img, details, transferBtn]);
     }
-
-    // ---------------------------------------------------------------------
-    // QUANTITY SELECTOR
-    // ---------------------------------------------------------------------
 
     openQuantityModal(card) {
         this.selectedCard = card;
