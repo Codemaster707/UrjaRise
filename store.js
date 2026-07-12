@@ -272,16 +272,15 @@ async function handlePackPurchaseSequence(packSpec) {
     try {
         const idToken = await auth.currentUser.getIdToken(true);
 
-        // FIXED: Added the specific API endpoint. 
-        // ⚠️ IMPORTANT: Change "/api/buy-pack" to your actual backend route! ⚠️
-        const response = await fetch("https://urjarise-backend-production.up.railway.app//buyPack", { 
-            method: "POST",
-            headers: {
-                "Content-Type": "application/json",
-                "Authorization": `Bearer ${idToken}`
-            },
-            body: JSON.stringify({ packId: packSpec.id })
-        });
+    // Fixed the double slash before buyPack
+const response = await fetch("https://urjarise-backend-production.up.railway.app/buyPack", { 
+    method: "POST",
+    headers: {
+        "Content-Type": "application/json",
+        "Authorization": `Bearer ${idToken}`
+    },
+    body: JSON.stringify({ packId: packSpec.id })
+});
 
         // FIXED: Gracefully handle HTML/404 errors before JSON parsing crashes
         if (!response.ok) {
