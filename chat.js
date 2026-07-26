@@ -671,7 +671,7 @@ class ChatApp {
         btn.textContent = isLoading ? "Sending..." : "Send";
     }
 
-    async executeTransferTransaction(card, transferQty) {
+   async executeTransferTransaction(card, transferQty) {
         const senderUid = this.currentUser.uid;
         const receiverUid = this.otherUserUid;
 
@@ -687,9 +687,12 @@ class ChatApp {
         const receiverUserRef = FirestoreRefs.getUserRef(receiverUid);
         const messagesRef = FirestoreRefs.getMessagesRef(this.chatId);
         const chatRef = FirestoreRefs.getChatRef(this.chatId);
-        const receiverNotifRef = FirestoreRefs.getNotificationsRef(receiverUid);
+        
+        // Prepare notification document reference
+        const receiverNotifRef = doc(FirestoreRefs.getNotificationsRef(receiverUid));
 
         await runTransaction(db, async (transaction) => {
+            // ---- Reads (must happen before any writes in a transaction) -----
             const [receiverUserSnap, senderCardSnap, receiverCardSnap] = await Promise.all([
                 transaction.get(receiverUserRef),
                 transaction.get(senderCardRef),
@@ -711,7 +714,7 @@ class ChatApp {
                 throw new Error("You don't have enough of this card.");
             }
 
-            // Deduct / remove from sender
+            // ---- Writes -------------------------------------------------------
             const remaining = senderData.quantity - transferQty;
             if (remaining <= 0) {
                 transaction.delete(senderCardRef);
@@ -719,7 +722,6 @@ class ChatApp {
                 transaction.update(senderCardRef, { quantity: remaining });
             }
 
-            // Add to receiver
             if (receiverCardSnap.exists()) {
                 transaction.update(receiverCardRef, {
                     quantity: receiverCardSnap.data().quantity + transferQty,
@@ -737,7 +739,6 @@ class ChatApp {
                 });
             }
 
-            // Log message in chat thread
             transaction.set(doc(messagesRef), {
                 senderId: senderUid,
                 receiverId: receiverUid,
@@ -748,25 +749,22 @@ class ChatApp {
                 timestamp: serverTimestamp()
             });
 
-            // Post real-time notification for receiver
-            const newNotifRef = doc(receiverNotifRef);
-            transaction.set(newNotifRef, {
-                senderId: senderUid,
-                text: `Sent you ${transferQty}x ${senderData.rarity} Card #${senderData.id}`,
-                seen: false,
-                createdAt: serverTimestamp()
-            });
-
-            // Update chat summary header
             transaction.set(chatRef, {
                 lastMessage: `Transferred ${transferQty}x Card #${senderData.id}`,
                 lastSenderId: senderUid,
                 timestamp: serverTimestamp(),
                 participants: [senderUid, receiverUid]
             }, { merge: true });
+
+            // Write notification for receiver
+            transaction.set(receiverNotifRef, {
+                senderId: senderUid,
+                text: `Sent you ${transferQty}x ${senderData.rarity} Card #${senderData.id}`,
+                seen: false,
+                createdAt: serverTimestamp()
+            });
         });
     }
-
     // ---------------------------------------------------------------------
     // CARD VIEWER
     // ---------------------------------------------------------------------
