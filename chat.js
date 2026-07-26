@@ -43,7 +43,7 @@ import {
 const db = getFirestore(app);
 const auth = getAuth(app);
 
-/** Firestore reference helpers — the ONLY place paths are constructed. */
+/** Firestore reference helpers — single source of truth for database paths. */
 const FirestoreRefs = {
     getUserRef: (uid) => doc(db, "users", uid),
     getChatRef: (chatId) => doc(db, "chats", chatId),
@@ -98,7 +98,7 @@ function escapeHTML(str) {
     }[tag]));
 }
 
-/** Small helper to build DOM nodes without ever touching innerHTML with dynamic data. */
+/** Helper to build DOM nodes without touching innerHTML with dynamic data. */
 function el(tag, attrs = {}, children = []) {
     const node = document.createElement(tag);
     for (const [key, value] of Object.entries(attrs)) {
@@ -121,7 +121,7 @@ function setImageWithFallback(imgEl, src, fallback = CARD_IMAGE_FALLBACK) {
     imgEl.src = src;
 }
 
-/** Lightweight toast system. */
+/** Lightweight toast notification system. */
 const Toast = (() => {
     let container = null;
 
@@ -200,7 +200,7 @@ const Toast = (() => {
 
 class ChatApp {
     constructor() {
-        // ---- state -----------------------------------------------------------
+        // ---- State -----------------------------------------------------------
         this.currentUser = null;
         this.otherUserUid = null;
         this.chatId = null;
@@ -216,7 +216,7 @@ class ChatApp {
         this.unsubscribeInventory = null;
         this.unsubscribeProfile = null;
 
-        // ---- DOM cache ---------------------------------------------------------
+        // ---- DOM Cache -------------------------------------------------------
         this.dom = {
             backBtn: document.getElementById("backBtn"),
             chatDisplayName: document.getElementById("chatDisplayName"),
@@ -315,7 +315,7 @@ class ChatApp {
         d.confirmTransfer?.addEventListener("click", () => this.handleConfirmTransfer());
     }
 
-    /** Cleans up all live listeners. Call on page teardown / SPA navigation. */
+    /** Cleans up all live listeners. */
     destroy() {
         this.unsubscribeMessages?.();
         this.unsubscribeInventory?.();
@@ -358,7 +358,7 @@ class ChatApp {
     }
 
     // ---------------------------------------------------------------------
-    // MESSAGING (single realtime listener, incremental rendering)
+    // MESSAGING (Realtime listener + Notification Trigger)
     // ---------------------------------------------------------------------
 
     loadMessages() {
@@ -488,7 +488,7 @@ class ChatApp {
                 timestamp: serverTimestamp()
             });
 
-            // Trigger notification for text message
+            // Write real-time notification to recipient subcollection
             await addDoc(FirestoreRefs.getNotificationsRef(this.otherUserUid), {
                 type: "chat_message",
                 senderId: this.currentUser.uid,
@@ -517,7 +517,7 @@ class ChatApp {
     }
 
     // ---------------------------------------------------------------------
-    // INVENTORY (single realtime listener)
+    // INVENTORY (Realtime listener)
     // ---------------------------------------------------------------------
 
     async openCardSelector() {
@@ -550,7 +550,7 @@ class ChatApp {
             return friendSnap.exists();
         } catch (error) {
             console.error("Friend verification failed:", error);
-            Toast.error("Couldn't verify friendship status. Check console for details.");
+            Toast.error("Couldn't verify friendship status.");
             return false;
         }
     }
@@ -653,7 +653,7 @@ class ChatApp {
     }
 
     // ---------------------------------------------------------------------
-    // TRANSFER (single atomic Firestore transaction with Notification)
+    // ATOMIC CARD TRANSFER TRANSACTION
     // ---------------------------------------------------------------------
 
     async handleConfirmTransfer() {
@@ -703,7 +703,7 @@ class ChatApp {
         const receiverNotifRef = FirestoreRefs.getNotificationsRef(receiverUid);
 
         await runTransaction(db, async (transaction) => {
-            // ---- Reads (Must precede writes) ----
+            // ---- All Reads Must Precede Writes in Firestore Transactions ----
             const [receiverUserSnap, senderCardSnap, receiverCardSnap] = await Promise.all([
                 transaction.get(receiverUserRef),
                 transaction.get(senderCardRef),
@@ -750,7 +750,7 @@ class ChatApp {
                 });
             }
 
-            // Write message subcollection entry
+            // Write card message entry
             const newMessageRef = doc(messagesRef);
             transaction.set(newMessageRef, {
                 senderId: senderUid,
@@ -762,7 +762,7 @@ class ChatApp {
                 timestamp: serverTimestamp()
             });
 
-            // Write recipient notification entry atomically
+            // Write notification entry atomically
             const newNotifRef = doc(receiverNotifRef);
             transaction.set(newNotifRef, {
                 type: "card_transfer",
@@ -775,7 +775,7 @@ class ChatApp {
                 timestamp: serverTimestamp()
             });
 
-            // Update chat metadata summary
+            // Set chat summary metadata
             transaction.set(chatRef, {
                 lastMessage: `Transferred ${transferQty}x Card #${senderData.id}`,
                 lastSenderId: senderUid,
