@@ -7,22 +7,11 @@
  * users/{uid}                          { displayName, photoURL, isOnline }
  * users/{uid}/growthFriends/{friendUid}  (existence = friendship, per user-profile.js)
  * users/{uid}/cards/{cardId}            { id, rarity, quantity, ownerHistory[], acquiredAt, lastTransferredAt }
+ * users/{uid}/notifications/{notifId}   { type, senderId, chatId, messagePreview, read, timestamp }
  * chats/{chatId}                       { participants[], lastMessage, lastSenderId, timestamp }
  * chats/{chatId}/messages/{autoId}
  *
  * chatId is always [uidA, uidB].sort().join("_") — never created twice.
- *
- * NOTE ON CSP: this file intentionally does NOT create a Content-Security-Policy
- * at runtime. Define the policy once in the HTML `<head>`:
- * <meta http-equiv="Content-Security-Policy" content="...">
- * Generating CSP from JS is unreliable (races the initial paint) and is a
- * security smell — CSP belongs to the document, not the script.
- *
- * NOTE ON CONFIG: Firebase credentials are NOT hardcoded here. ./firebase-config.js
- * is the single source of truth for the whole app — it already calls
- * initializeApp() and exports the resulting `app` instance, so every page
- * (chat.js, feed.js, admin pages, etc.) reuses the same app rather than each
- * re-initializing Firebase with its own copy of the config.
  */
 
 import { app } from "./firebase-config.js";
@@ -61,7 +50,8 @@ const FirestoreRefs = {
     getMessagesRef: (chatId) => collection(db, "chats", chatId, "messages"),
     getInventoryRef: (uid) => collection(db, "users", uid, "cards"),
     getCardRef: (uid, cardId) => doc(db, "users", uid, "cards", String(cardId)),
-    getGrowthFriendRef: (uid, friendUid) => doc(db, "users", uid, "growthFriends", friendUid)
+    getGrowthFriendRef: (uid, friendUid) => doc(db, "users", uid, "growthFriends", friendUid),
+    getNotificationsRef: (uid) => collection(db, "users", uid, "notifications")
 };
 
 /** Deterministic, duplicate-proof chat id for two participants. */
@@ -87,8 +77,7 @@ const CARD_IMAGE_FALLBACK = "https://via.placeholder.com/150";
 
 /**
  * Single source of truth for card image paths. Card `id` values are already
- * complete filename stems (e.g. "card81A", "card72A") — do not prepend/append
- * anything else here, or you'll get double-stacked names like "cardcard81AA.jpg".
+ * complete filename stems (e.g. "card81A", "card72A").
  */
 function getCardImage(cardId) {
     return `${CARD_IMAGE_BASE_PATH}/${cardId}.jpg`;
@@ -132,7 +121,7 @@ function setImageWithFallback(imgEl, src, fallback = CARD_IMAGE_FALLBACK) {
     imgEl.src = src;
 }
 
-/** Lightweight toast system — replaces alert()/confirm() entirely. */
+/** Lightweight toast system. */
 const Toast = (() => {
     let container = null;
 
@@ -498,6 +487,16 @@ class ChatApp {
                 type: "text",
                 timestamp: serverTimestamp()
             });
+
+            // Trigger notification for text message
+            await addDoc(FirestoreRefs.getNotificationsRef(this.otherUserUid), {
+                type: "chat_message",
+                senderId: this.currentUser.uid,
+                chatId: this.chatId,
+                messagePreview: text.length > 50 ? text.slice(0, 50) + "..." : text,
+                read: false,
+                timestamp: serverTimestamp()
+            });
         } catch (error) {
             console.error("Error sending message:", error);
             input.value = text;
@@ -518,7 +517,7 @@ class ChatApp {
     }
 
     // ---------------------------------------------------------------------
-    // INVENTORY (single realtime listener — created once, unsubscribed on teardown)
+    // INVENTORY (single realtime listener)
     // ---------------------------------------------------------------------
 
     async openCardSelector() {
@@ -654,7 +653,7 @@ class ChatApp {
     }
 
     // ---------------------------------------------------------------------
-    // TRANSFER (single atomic Firestore transaction)
+    // TRANSFER (single atomic Firestore transaction with Notification)
     // ---------------------------------------------------------------------
 
     async handleConfirmTransfer() {
@@ -701,9 +700,10 @@ class ChatApp {
         const receiverUserRef = FirestoreRefs.getUserRef(receiverUid);
         const messagesRef = FirestoreRefs.getMessagesRef(this.chatId);
         const chatRef = FirestoreRefs.getChatRef(this.chatId);
+        const receiverNotifRef = FirestoreRefs.getNotificationsRef(receiverUid);
 
         await runTransaction(db, async (transaction) => {
-            // ---- Reads (must happen before any writes in a transaction) -----
+            // ---- Reads (Must precede writes) ----
             const [receiverUserSnap, senderCardSnap, receiverCardSnap] = await Promise.all([
                 transaction.get(receiverUserRef),
                 transaction.get(senderCardRef),
@@ -725,7 +725,7 @@ class ChatApp {
                 throw new Error("You don't have enough of this card.");
             }
 
-            // ---- Writes -------------------------------------------------------
+            // ---- Writes ----
             const remaining = senderData.quantity - transferQty;
             if (remaining <= 0) {
                 transaction.delete(senderCardRef);
@@ -750,6 +750,7 @@ class ChatApp {
                 });
             }
 
+            // Write message subcollection entry
             const newMessageRef = doc(messagesRef);
             transaction.set(newMessageRef, {
                 senderId: senderUid,
@@ -761,6 +762,20 @@ class ChatApp {
                 timestamp: serverTimestamp()
             });
 
+            // Write recipient notification entry atomically
+            const newNotifRef = doc(receiverNotifRef);
+            transaction.set(newNotifRef, {
+                type: "card_transfer",
+                senderId: senderUid,
+                cardId: senderData.id,
+                quantity: transferQty,
+                rarity: senderData.rarity,
+                chatId: this.chatId,
+                read: false,
+                timestamp: serverTimestamp()
+            });
+
+            // Update chat metadata summary
             transaction.set(chatRef, {
                 lastMessage: `Transferred ${transferQty}x Card #${senderData.id}`,
                 lastSenderId: senderUid,
