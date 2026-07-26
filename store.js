@@ -273,7 +273,7 @@ async function handlePackPurchaseSequence(packSpec) {
         const idToken = await auth.currentUser.getIdToken(true);
 
     // Fixed the double slash before buyPack
-const response = await fetch("https://urjarise-backend-production.up.railway.app/buyPack", { 
+const response = await fetch("https://urjarise-backend.vercel.app/buyPack", { 
     method: "POST",
     headers: {
         "Content-Type": "application/json",
