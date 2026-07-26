@@ -7,7 +7,7 @@
  * users/{uid}                          { displayName, photoURL, isOnline }
  * users/{uid}/growthFriends/{friendUid}  (existence = friendship, per user-profile.js)
  * users/{uid}/cards/{cardId}            { id, rarity, quantity, ownerHistory[], acquiredAt, lastTransferredAt }
- * users/{uid}/notifications/{notifId}   { type, senderId, chatId, messagePreview, read, timestamp }
+ * users/{uid}/notifications/{notifId}   { senderId, text, seen, createdAt }
  * chats/{chatId}                       { participants[], lastMessage, lastSenderId, timestamp }
  * chats/{chatId}/messages/{autoId}
  *
@@ -75,10 +75,6 @@ const RARITY_WEIGHT = {
 const CARD_IMAGE_BASE_PATH = "card";
 const CARD_IMAGE_FALLBACK = "https://via.placeholder.com/150";
 
-/**
- * Single source of truth for card image paths. Card `id` values are already
- * complete filename stems (e.g. "card81A", "card72A").
- */
 function getCardImage(cardId) {
     return `${CARD_IMAGE_BASE_PATH}/${cardId}.jpg`;
 }
@@ -87,7 +83,6 @@ function getCardImage(cardId) {
 // UTILITIES
 // =============================================================================
 
-/** Escapes any user-generated string before it can touch the DOM as text. */
 function escapeHTML(str) {
     return String(str ?? "").replace(/[&<>'"]/g, (tag) => ({
         "&": "&amp;",
@@ -98,7 +93,6 @@ function escapeHTML(str) {
     }[tag]));
 }
 
-/** Helper to build DOM nodes without touching innerHTML with dynamic data. */
 function el(tag, attrs = {}, children = []) {
     const node = document.createElement(tag);
     for (const [key, value] of Object.entries(attrs)) {
@@ -121,7 +115,6 @@ function setImageWithFallback(imgEl, src, fallback = CARD_IMAGE_FALLBACK) {
     imgEl.src = src;
 }
 
-/** Lightweight toast notification system. */
 const Toast = (() => {
     let container = null;
 
@@ -250,10 +243,6 @@ class ChatApp {
         };
     }
 
-    // ---------------------------------------------------------------------
-    // INITIALIZATION
-    // ---------------------------------------------------------------------
-
     init() {
         const params = new URLSearchParams(window.location.search);
         this.otherUserUid = params.get("uid");
@@ -315,7 +304,6 @@ class ChatApp {
         d.confirmTransfer?.addEventListener("click", () => this.handleConfirmTransfer());
     }
 
-    /** Cleans up all live listeners. */
     destroy() {
         this.unsubscribeMessages?.();
         this.unsubscribeInventory?.();
@@ -358,7 +346,7 @@ class ChatApp {
     }
 
     // ---------------------------------------------------------------------
-    // MESSAGING (Realtime listener + Notification Trigger)
+    // MESSAGING & REALTIME NOTIFICATIONS
     // ---------------------------------------------------------------------
 
     loadMessages() {
@@ -480,6 +468,7 @@ class ChatApp {
         try {
             await this.touchChatSummary(text);
 
+            // 1. Add message to chat history
             await addDoc(FirestoreRefs.getMessagesRef(this.chatId), {
                 senderId: this.currentUser.uid,
                 receiverId: this.otherUserUid,
@@ -488,14 +477,12 @@ class ChatApp {
                 timestamp: serverTimestamp()
             });
 
-            // Write real-time notification to recipient subcollection
+            // 2. Add notification record for receiver matching feed.js schema
             await addDoc(FirestoreRefs.getNotificationsRef(this.otherUserUid), {
-                type: "chat_message",
                 senderId: this.currentUser.uid,
-                chatId: this.chatId,
-                messagePreview: text.length > 50 ? text.slice(0, 50) + "..." : text,
-                read: false,
-                timestamp: serverTimestamp()
+                text: text,
+                seen: false,
+                createdAt: serverTimestamp()
             });
         } catch (error) {
             console.error("Error sending message:", error);
@@ -517,7 +504,7 @@ class ChatApp {
     }
 
     // ---------------------------------------------------------------------
-    // INVENTORY (Realtime listener)
+    // INVENTORY
     // ---------------------------------------------------------------------
 
     async openCardSelector() {
@@ -653,7 +640,7 @@ class ChatApp {
     }
 
     // ---------------------------------------------------------------------
-    // ATOMIC CARD TRANSFER TRANSACTION
+    // CARD TRANSFER & NOTIFICATION TRANSACTION
     // ---------------------------------------------------------------------
 
     async handleConfirmTransfer() {
@@ -703,7 +690,6 @@ class ChatApp {
         const receiverNotifRef = FirestoreRefs.getNotificationsRef(receiverUid);
 
         await runTransaction(db, async (transaction) => {
-            // ---- All Reads Must Precede Writes in Firestore Transactions ----
             const [receiverUserSnap, senderCardSnap, receiverCardSnap] = await Promise.all([
                 transaction.get(receiverUserRef),
                 transaction.get(senderCardRef),
@@ -725,7 +711,7 @@ class ChatApp {
                 throw new Error("You don't have enough of this card.");
             }
 
-            // ---- Writes ----
+            // Deduct / remove from sender
             const remaining = senderData.quantity - transferQty;
             if (remaining <= 0) {
                 transaction.delete(senderCardRef);
@@ -733,6 +719,7 @@ class ChatApp {
                 transaction.update(senderCardRef, { quantity: remaining });
             }
 
+            // Add to receiver
             if (receiverCardSnap.exists()) {
                 transaction.update(receiverCardRef, {
                     quantity: receiverCardSnap.data().quantity + transferQty,
@@ -750,9 +737,8 @@ class ChatApp {
                 });
             }
 
-            // Write card message entry
-            const newMessageRef = doc(messagesRef);
-            transaction.set(newMessageRef, {
+            // Log message in chat thread
+            transaction.set(doc(messagesRef), {
                 senderId: senderUid,
                 receiverId: receiverUid,
                 cardId: senderData.id,
@@ -762,20 +748,16 @@ class ChatApp {
                 timestamp: serverTimestamp()
             });
 
-            // Write notification entry atomically
+            // Post real-time notification for receiver
             const newNotifRef = doc(receiverNotifRef);
             transaction.set(newNotifRef, {
-                type: "card_transfer",
                 senderId: senderUid,
-                cardId: senderData.id,
-                quantity: transferQty,
-                rarity: senderData.rarity,
-                chatId: this.chatId,
-                read: false,
-                timestamp: serverTimestamp()
+                text: `Sent you ${transferQty}x ${senderData.rarity} Card #${senderData.id}`,
+                seen: false,
+                createdAt: serverTimestamp()
             });
 
-            // Set chat summary metadata
+            // Update chat summary header
             transaction.set(chatRef, {
                 lastMessage: `Transferred ${transferQty}x Card #${senderData.id}`,
                 lastSenderId: senderUid,
@@ -802,7 +784,7 @@ class ChatApp {
     }
 
     // ---------------------------------------------------------------------
-    // SMALL DOM HELPERS
+    // HELPERS
     // ---------------------------------------------------------------------
 
     show(node, display = "flex") {
