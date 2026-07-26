@@ -275,8 +275,6 @@ class ChatApp {
             return;
         }
 
-        // Issue 6 Fix: Extracted from onAuthStateChanged to ensure listeners 
-        // are only bound once on initial DOM load.
         this.bindEvents();
 
         onAuthStateChanged(auth, (user) => {
@@ -285,8 +283,6 @@ class ChatApp {
                 return;
             }
             
-            // Issue 6 Fix: Safely clean up any active realtime handles 
-            // before changing auth context state parameters.
             this.destroy();
 
             this.currentUser = user;
@@ -362,8 +358,6 @@ class ChatApp {
 
     renderProfile(data) {
         const d = this.dom;
-        // Issue 7 Fix: Added explicit fallback text handling when user 
-        // snapshots return null (e.g., when a user account gets deleted).
         if (!data) {
             if (d.chatDisplayName) d.chatDisplayName.textContent = "Unknown User";
             if (d.chatStatus) d.chatStatus.textContent = "Account unavailable";
@@ -457,7 +451,7 @@ class ChatApp {
         wrapper.style.opacity = isPending ? "0.6" : "1";
 
         const bubble = el("div", { class: "message-bubble" });
-        bubble.textContent = msg.text || ""; // textContent, never innerHTML
+        bubble.textContent = msg.text || "";
         wrapper.appendChild(bubble);
         return wrapper;
     }
@@ -495,9 +489,6 @@ class ChatApp {
         input.value = "";
 
         try {
-            // Issue 3 Fix: The chat summary document containing the participants array 
-            // is initialized/merged FIRST before generating subcollection logs. 
-            // This prevents permission exceptions when security rules process constraints.
             await this.touchChatSummary(text);
 
             await addDoc(FirestoreRefs.getMessagesRef(this.chatId), {
@@ -509,7 +500,7 @@ class ChatApp {
             });
         } catch (error) {
             console.error("Error sending message:", error);
-            input.value = text; // give the text back so nothing is lost
+            input.value = text;
             Toast.error("Message failed to send.", {
                 actionLabel: "Retry",
                 onAction: () => this.handleSendMessage(event)
@@ -544,11 +535,6 @@ class ChatApp {
         }
     }
 
-    /**
-     * #notFriendPopup is styled via a `.show` class (it animates opacity in/out),
-     * not a plain display:none/flex toggle like the other modals — so it needs
-     * its own show/hide instead of the generic this.show()/this.hide() helpers.
-     */
     showNotFriendPopup() {
         const popup = this.dom.notFriendPopup;
         if (!popup) return;
@@ -557,18 +543,6 @@ class ChatApp {
         this._notFriendPopupTimer = setTimeout(() => popup.classList.remove("show"), 3500);
     }
 
-    /**
-     * Friendship check. UrjaRise's Growth Friends system records the
-     * connection on at least one side's friendsList, not necessarily both,
-     * so this checks the current user's own list only — matching the
-     * original app behavior. (A stricter two-way check was tried here
-     * previously and broke this button for exactly this reason.)
-     */
-    /**
-     * Friendship in UrjaRise is stored as a subcollection document, not an
-     * array field: users/{uid}/growthFriends/{friendUid}. Its existence is
-     * the source of truth — this matches how user-profile.js checks it.
-     */
     async verifyFriendship() {
         try {
             const friendSnap = await getDoc(
@@ -776,7 +750,8 @@ class ChatApp {
                 });
             }
 
-            transaction.set(doc(messagesRef), {
+            const newMessageRef = doc(messagesRef);
+            transaction.set(newMessageRef, {
                 senderId: senderUid,
                 receiverId: receiverUid,
                 cardId: senderData.id,
