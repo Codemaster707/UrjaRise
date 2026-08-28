@@ -13,9 +13,7 @@ import {
     where,
     orderBy,
     limit,
-    setDoc,
-    deleteDoc,
-    onSnapshot
+    setDoc
 } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
 
 // ============ Firebase Config ============
@@ -37,7 +35,6 @@ const params = new URLSearchParams(window.location.search);
 const targetUid = params.get("uid");
 
 if (!targetUid) {
-    // No UID provided — redirect back
     window.location.href = "feed.html";
 }
 
@@ -98,9 +95,13 @@ function getRankLabel(rank) {
     return `#${rank}`;
 }
 
+function getCardImageUrl(rawId) {
+    const num = String(rawId).replace(/\D/g, "");
+    return `card/card${num}A.jpg`;
+}
+
 // ============ Load target user rank ============
 async function fetchUserRank() {
-    // Check if user has 0 points explicitly to mark them as unranked
     const points = targetUserData?.urjaPoints || 0;
     if (points === 0) {
         statRank.textContent = "Unranked";
@@ -130,6 +131,59 @@ async function fetchUserRank() {
     }
 }
 
+// ============ Load user cards ============
+async function loadUserCards() {
+    const cardsContainer = document.getElementById("cardsContainer");
+    const cardsCountBadge = document.getElementById("cardsCountBadge");
+    const emptyCardsMsg = document.getElementById("emptyCardsMsg");
+
+    try {
+        const cardsSnap = await getDocs(
+            collection(db, "users", targetUid, "cards")
+        );
+
+        cardsContainer.innerHTML = "";
+
+        if (cardsSnap.empty) {
+            cardsCountBadge.textContent = "0";
+            if (emptyCardsMsg) emptyCardsMsg.style.display = "block";
+            return;
+        }
+
+        let totalCardsOwned = 0;
+        cardsSnap.forEach(docSnap => {
+            const cardData = docSnap.data();
+            totalCardsOwned += (cardData.quantity || 1);
+
+            const numericId = String(cardData.id || docSnap.id).replace(/\D/g, "");
+            const imgUrl = getCardImageUrl(cardData.id || docSnap.id);
+            const rarity = cardData.rarity || "Common";
+
+            const cardEl = document.createElement("div");
+            cardEl.className = `user-card-item border-${rarity.toLowerCase()}`;
+            cardEl.innerHTML = `
+                <div class="card-img-wrapper">
+                    <img src="${imgUrl}" 
+                         onerror="this.onerror=null; this.src='/${imgUrl}';" 
+                         alt="Card #${numericId}">
+                    ${cardData.quantity > 1 ? `<span class="card-qty-badge">x${cardData.quantity}</span>` : ''}
+                </div>
+                <div class="card-item-info">
+                    <span class="card-item-id">#${numericId}</span>
+                    <span class="card-item-rarity rarity-${rarity.toLowerCase()}">${rarity}</span>
+                </div>
+            `;
+            cardsContainer.appendChild(cardEl);
+        });
+
+        cardsCountBadge.textContent = totalCardsOwned;
+
+    } catch (err) {
+        console.error("Failed to load cards:", err);
+        cardsContainer.innerHTML = `<div style="text-align:center; padding:15px; color:#999; font-size:0.8rem;">Could not load card collection.</div>`;
+    }
+}
+
 // ============ Load user profile ============
 async function loadTargetProfile() {
     try {
@@ -148,17 +202,12 @@ async function loadTargetProfile() {
         const name = displayName || username || "Urja Member";
         const handle = username ? `@${username}` : "@user";
 
-        // Header
         document.title = `${name} — UrjaRise`;
         headerHandleText.textContent = handle;
 
-        // Avatar
         if (photoURL) profileAvatar.src = photoURL;
-
-        // Online badge
         if (isOnline) onlineBadge.style.display = "block";
 
-        // Info
         displayNameEl.textContent = name;
         usernameEl.textContent = handle;
 
@@ -173,33 +222,27 @@ async function loadTargetProfile() {
             goalEl.style.display = "inline-flex";
         }
 
-        // Blur bg tint matches avatar (orange tint)
         if (photoURL) {
             heroBgBlur.style.backgroundImage = `radial-gradient(circle, rgba(255,92,0,0.15), transparent 70%)`;
         }
 
-        // Stats
         statPoints.textContent = (urjaPoints || 0).toLocaleString();
-        // Show effective streak — hide stale streaks from inactive users
-const lastActive = targetUserData.lastActiveDate || "";
-const istNow = new Date(new Date().getTime() + 5.5 * 60 * 60 * 1000);
-const yesterday = new Date(istNow);
-yesterday.setDate(yesterday.getDate() - 1);
-const yesterdayStr = [
-    yesterday.getUTCFullYear(),
-    String(yesterday.getUTCMonth() + 1).padStart(2, '0'),
-    String(yesterday.getUTCDate()).padStart(2, '0')
-].join('-');
-const effectiveStreak = (lastActive >= yesterdayStr) ? (currentStreak || 0) : 0;
-statStreak.textContent = effectiveStreak;
+        
+        const lastActive = targetUserData.lastActiveDate || "";
+        const istNow = new Date(new Date().getTime() + 5.5 * 60 * 60 * 1000);
+        const yesterday = new Date(istNow);
+        yesterday.setDate(yesterday.getDate() - 1);
+        const yesterdayStr = [
+            yesterday.getUTCFullYear(),
+            String(yesterday.getUTCMonth() + 1).padStart(2, '0'),
+            String(yesterday.getUTCDate()).padStart(2, '0')
+        ].join('-');
+        const effectiveStreak = (lastActive >= yesterdayStr) ? (currentStreak || 0) : 0;
+        statStreak.textContent = effectiveStreak;
 
-        // Fetch rank (Relies on targetUserData state being set above)
         fetchUserRank();
-
-        // Load friends count + list
+        loadUserCards();
         loadFriends();
-
-        // Load posts
         loadUserPosts();
 
     } catch (err) {
@@ -255,8 +298,6 @@ async function loadFriends() {
 // ============ Load posts ============
 async function loadUserPosts() {
     try {
-        // Query by uid only — avoids composite index requirement.
-        // Sort client-side by createdAt desc.
         const postsQuery = query(
             collection(db, "posts"),
             where("uid", "==", targetUid)
@@ -264,7 +305,6 @@ async function loadUserPosts() {
 
         const snap = await getDocs(postsQuery);
 
-        // Clear shimmer
         postsContainer.innerHTML = "";
 
         if (snap.empty) {
@@ -273,7 +313,6 @@ async function loadUserPosts() {
             return;
         }
 
-        // Sort newest-first client-side (avoids composite index)
         const sortedDocs = snap.docs.sort((a, b) => {
             const aTime = a.data().createdAt?.toMillis?.() || 0;
             const bTime = b.data().createdAt?.toMillis?.() || 0;
@@ -313,13 +352,11 @@ async function loadUserPosts() {
 async function checkFriendStatus(viewerUid) {
     if (!viewerUid || viewerUid === targetUid) return;
 
-    // Show CTA area
-    heroCta.style.display = "block";
+    heroCta.style.display = "flex";
     addFriendHeaderBtn.style.display = "flex";
     directChatBtn.style.display = "flex";
 
     try {
-        // Check if already friends
         const friendSnap = await getDoc(
             doc(db, "users", viewerUid, "growthFriends", targetUid)
         );
@@ -329,7 +366,6 @@ async function checkFriendStatus(viewerUid) {
             return;
         }
 
-        // Check if request already sent
         const reqSnap = await getDoc(
             doc(db, "users", targetUid, "friendRequests", viewerUid)
         );
@@ -339,7 +375,6 @@ async function checkFriendStatus(viewerUid) {
             return;
         }
 
-        // Default: show add button
         setFriendBtnState("default");
 
     } catch (err) {
@@ -399,21 +434,17 @@ onAuthStateChanged(auth, async (user) => {
     }
     currentUser = user;
 
-    // If viewing own profile, redirect to the edit profile page
     if (user.uid === targetUid) {
         window.location.href = "profile.html";
         return;
     }
 
-    // Load everything
     await loadTargetProfile();
     await checkFriendStatus(user.uid);
 
-    // Wire up friend buttons
     addFriendBtn.addEventListener("click", sendFriendRequest);
     addFriendHeaderBtn.addEventListener("click", sendFriendRequest);
 
-    // Wire up chat button
     directChatBtn.addEventListener("click", () => {
         window.location.href = `chat.html?uid=${targetUid}`;
     });
