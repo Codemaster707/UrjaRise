@@ -71,26 +71,41 @@ function getCardImageUrl(rawId) {
 // ==========================================
 const PACK_SPECIFICATIONS = {
     basic: {
-        id: "basic", name: "Basic Pack", emoji: "🎁", price: 40, size: 1, text: "Contains 1 randomized collection item card.",
-        chances: { Common: 0.70, Uncommon: 0.25, Rare: 0.05 }
+        id: "basic", 
+        name: "Basic Pack", 
+        emoji: "🎁", 
+        price: 20, 
+        size: 2, 
+        text: "Contains 2 randomized collection cards.",
+        chances: { Common: 0.65, Uncommon: 0.25, Rare: 0.08, Epic: 0.02 }
     },
     growth: {
-        id: "growth", name: "Growth Pack", emoji: "⭐", price: 100, size: 2, text: "Contains 2 random cards with enhanced mid-tier chances.",
+        id: "growth", 
+        name: "Growth Pack", 
+        emoji: "⭐", 
+        price: 60, 
+        size: 3, 
+        text: "Contains 3 cards with enhanced mid-tier drop rates.",
         chances: { Common: 0.40, Uncommon: 0.35, Rare: 0.20, Epic: 0.05 }
     },
     discipline: {
-        id: "discipline", name: "Discipline Pack", emoji: "🔥", price: 200, size: 3, text: "Contains 3 cards. Common tier is fully excluded.",
-        chances: { Uncommon: 0.40, Rare: 0.40, Epic: 0.18, Legendary: 0.02 }
+        id: "discipline", 
+        name: "Discipline Pack", 
+        emoji: "🔥", 
+        price: 150, 
+        size: 4, 
+        text: "Contains 4 cards. Common tier is fully excluded.",
+        chances: { Uncommon: 0.50, Rare: 0.35, Epic: 0.13, Legendary: 0.02 }
     },
     legendary: {
-        id: "legendary", name: "Legendary Pack", emoji: "👑", price: 500, size: 5, text: "Contains 5 cards. Minimum 1 Epic or higher guaranteed.",
+        id: "legendary", 
+        name: "Legendary Pack", 
+        emoji: "👑", 
+        price: 450, 
+        size: 5, 
+        text: "Contains 5 cards. Minimum 1 Epic or higher guaranteed.",
         chances: { Rare: 0.45, Epic: 0.35, Legendary: 0.18, Mythical: 0.02 },
         guaranteedFilter: ["Epic", "Legendary", "Mythical"]
-    },
-    mythical: {
-        id: "mythical", name: "Mythical Pack", emoji: "🐉", price: 1500, size: 10, text: "Apex box containing 10 cards. Minimum 1 Legendary or higher guaranteed.",
-        chances: { Epic: 0.50, Legendary: 0.40, Mythical: 0.09, Divine: 0.01 },
-        guaranteedFilter: ["Legendary", "Mythical", "Divine"]
     }
 };
 
@@ -170,7 +185,7 @@ function startDailyDealsEngine() {
     
     const dealContainer = document.getElementById("dailyDealContainer");
     if (dealContainer && targetDealCard) {
-        const discountedPrice = 350; 
+        const discountedPrice = 120;
         const numericId = cleanNumericId(targetDealCard.id);
         const imgUrl = getCardImageUrl(targetDealCard.id);
         const isDuplicate = ownedCardsMap.has(numericId);
@@ -251,8 +266,8 @@ function evaluateButtonStates() {
         if (button) button.disabled = userPoints < p.price;
     });
     
-    const dailyBtn = document.getElementById("buyDailyDealBtn");
-    if (dailyBtn) dailyBtn.disabled = userPoints < 350;
+     const dailyBtn = document.getElementById("buyDailyDealBtn");
+    if (dailyBtn) dailyBtn.disabled = userPoints < 120;
 }
 
 async function handlePackPurchaseSequence(packSpec) {
@@ -272,15 +287,16 @@ async function handlePackPurchaseSequence(packSpec) {
     try {
         const idToken = await auth.currentUser.getIdToken(true);
 
-    // Fixed the double slash before buyPack
-const response = await fetch("https://urjarise-backend.vercel.app/buyPack", { 
-    method: "POST",
-    headers: {
-        "Content-Type": "application/json",
-        "Authorization": `Bearer ${idToken}`
-    },
-    body: JSON.stringify({ packId: packSpec.id })
-});
+        // FIXED: Added the specific API endpoint. 
+        // ⚠️ IMPORTANT: Change "/api/buy-pack" to your actual backend route! ⚠️
+        const response = await fetch("https://urjarise-backend-production.up.railway.app//buyPack", { 
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json",
+                "Authorization": `Bearer ${idToken}`
+            },
+            body: JSON.stringify({ packId: packSpec.id })
+        });
 
         // FIXED: Gracefully handle HTML/404 errors before JSON parsing crashes
         if (!response.ok) {
@@ -397,15 +413,18 @@ function launchCardRevealStepSequence(cards) {
                 ">
                     ${card.rarity}
                 </p>
-                ${
-                    card.isDuplicate
-                    ? `<p style="color:#FFD700;font-weight:bold;font-size:0.9rem;margin:0;">
-                        Duplicate → Dust Awarded
-                       </p>`
-                    : `<p style="color:#00ff88;font-weight:bold;font-size:0.9rem;margin:0;">
-                        New Card!
-                       </p>`
-                }
+                ${(() => {
+    const DUST_VALUES = { Common: 5, Uncommon: 12, Rare: 30, Epic: 75, Legendary: 200, Mythical: 500, Divine: 1000 };
+    const dustEarned = DUST_VALUES[card.rarity] || 5;
+
+    return card.isDuplicate
+    ? `<p style="color:#FFD700;font-weight:bold;font-size:0.9rem;margin:0;">
+        Duplicate → +${dustEarned} Dust
+       </p>`
+    : `<p style="color:#00ff88;font-weight:bold;font-size:0.9rem;margin:0;">
+        New Card!
+       </p>`;
+})()}
             </div>
         `;
     });
