@@ -77,6 +77,23 @@
                 </button>
             </div>
         </div>
+
+        <!-- CARD VAULT SECTION -->
+        <div class="cards-section" id="cardsSection">
+            <div class="section-header" style="padding: 0 16px; margin-bottom: 12px;">
+                <h3><i class="fas fa-id-card"></i> Card Vault</h3>
+                <span class="cards-count-badge" id="cardsCountBadge">0</span>
+            </div>
+
+            <div class="cards-scroll-grid" id="cardsContainer">
+                <div class="shimmer-card shimmer"></div>
+                <div class="shimmer-card shimmer"></div>
+            </div>
+
+            <div id="emptyCardsMsg" style="display:none;" class="empty-cards-msg">
+                <p>No cards collected yet.</p>
+            </div>
+        </div>
  
         <div class="friends-section" id="friendsSection" style="display:none;">
             <div class="section-header">
@@ -106,40 +123,38 @@
             </div>
         </div>
  
-       <nav class="bottom-nav">
+        <nav class="bottom-nav">
+            <a href="leaderboard.html" class="nav-item">
+                <i class="fas fa-trophy"></i>
+                <span>LEADERBOARD</span>
+            </a>
 
-    <a href="leaderboard.html" class="nav-item">
-        <i class="fas fa-trophy"></i>
-        <span>LEADERBOARD</span>
-    </a>
+            <a href="feed.html" class="nav-item">
+                <i class="fas fa-compass"></i>
+                <span>FEED</span>
+            </a>
 
-    <a href="feed.html" class="nav-item">
-        <i class="fas fa-compass"></i>
-        <span>FEED</span>
-    </a>
+            <a href="streak.html" class="nav-item">
+                <i class="fas fa-fire"></i>
+                <span>STREAK</span>
+            </a>
 
-    <a href="streak.html" class="nav-item">
-        <i class="fas fa-fire"></i>
-        <span>STREAK</span>
-    </a>
+            <div class="nav-item plus-nav">
+                <a href="feed.html" class="plus-circle">
+                    <i class="fas fa-plus"></i>
+                </a>
+            </div>
 
-    <div class="nav-item plus-nav">
-        <a href="feed.html" class="plus-circle">
-            <i class="fas fa-plus"></i>
-        </a>
-    </div>
+            <a href="inventory.html" class="nav-item">
+                <i class="fas fa-id-card"></i>
+                <span>INVENTORY</span>
+            </a>
 
-    <a href="inventory.html" class="nav-item">
-        <i class="fas fa-id-card"></i>
-        <span>INVENTORY</span>
-    </a>
-
-    <div class="nav-item active">
-        <i class="far fa-user"></i>
-        <span>PROFILE</span>
-    </div>
-
-</nav>
+            <div class="nav-item active">
+                <i class="far fa-user"></i>
+                <span>PROFILE</span>
+            </div>
+        </nav>
  
     </div>
  
