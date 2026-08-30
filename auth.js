@@ -34,53 +34,22 @@ const auth = getAuth(app);
 const db = getFirestore(app);
 const provider = new GoogleAuthProvider();
 
-// Ask Google to show account selection
 provider.setCustomParameters({
     prompt: "select_account"
 });
 
 // ======================
-// DETECT APPILIX / ANDROID WEBVIEW
+// APPILIX ENVIRONMENT DETECTION
 // ======================
-// Normal Chrome/Edge/Firefox:
-// → Keep using the existing popup login.
-//
-// Android WebView / Appilix:
-// → Use redirect login instead.
-const userAgent = navigator.userAgent || navigator.vendor || window.opera;
+// Appilix injects a global `appilix` object into every page it loads
+// (documented at https://appilix.com/docs/javascript-bridge-overview).
+// This is a first-party signal, not user-agent sniffing, so it won't
+// misfire for normal Chrome/Edge/Safari visitors on the real website.
+function isInsideAppilixApp() {
+    return typeof window.appilix !== "undefined";
+}
 
-const isAndroidWebView =
-    /Android/i.test(userAgent) &&
-    (
-        /; wv\)/i.test(userAgent) ||
-        /Version\/[\d.]+.*Chrome\/[\d.]+.*Mobile/i.test(userAgent)
-    );
-
-// ======================
-// AUTH REDIRECT HANDLER
-// ======================
-let isRedirecting = false;
-
-const handleRedirect = async (user) => {
-    if (!user || isRedirecting) return;
-
-    isRedirecting = true;
-
-    try {
-        const userDoc = await getDoc(doc(db, "users", user.uid));
-
-        if (userDoc.exists()) {
-            window.location.href = "feed.html";
-        } else {
-            window.location.href = "profile.html";
-        }
-    } catch (error) {
-        console.error("Redirect error:", error);
-        window.location.href = "profile.html";
-    }
-};
-
-document.addEventListener("DOMContentLoaded", async () => {
+document.addEventListener("DOMContentLoaded", () => {
 
     const tabs = document.querySelectorAll(".tab");
     const togglePassword = document.querySelector(".toggle-password");
@@ -109,51 +78,38 @@ document.addEventListener("DOMContentLoaded", async () => {
     // TOGGLE PASSWORD
     // ======================
     togglePassword.addEventListener("click", () => {
-        const type = passwordInput.type === "password"
-            ? "text"
-            : "password";
-
+        const type = passwordInput.type === "password" ? "text" : "password";
         passwordInput.type = type;
-
         togglePassword.classList.toggle("fa-eye");
         togglePassword.classList.toggle("fa-eye-slash");
     });
 
     // ======================
-    // CHECK FOR REDIRECT LOGIN
+    // POST-LOGIN REDIRECT HANDLER (with loop protection)
     // ======================
-    // This runs after Google sends the user back
-    // to UrjaRise after signInWithRedirect().
-    try {
-        const redirectResult = await getRedirectResult(auth);
+    let isRedirecting = false;
 
-        if (redirectResult && redirectResult.user) {
-            console.log(
-                "Google Redirect Sign-In successful:",
-                redirectResult.user
-            );
+    const handleRedirect = async (user) => {
+        if (!user || isRedirecting) return;
 
-            console.log(
-                "Google profile photo:",
-                redirectResult.user.photoURL
-            );
+        isRedirecting = true; // Prevent multiple redirects
 
-            // onAuthStateChanged() below will handle
-            // the feed.html/profile.html redirect.
+        try {
+            const userDoc = await getDoc(doc(db, "users", user.uid));
+
+            if (userDoc.exists()) {
+                window.location.href = "feed.html";
+            } else {
+                window.location.href = "profile.html";
+            }
+        } catch (error) {
+            console.error("Redirect error:", error);
+            window.location.href = "profile.html";
         }
-    } catch (error) {
-        console.error("Google Redirect Sign-In Error:", error);
-        console.error("Error code:", error.code);
-        console.error("Error message:", error.message);
-
-        alert(
-            error.message ||
-            "Google sign in failed"
-        );
-    }
+    };
 
     // ======================
-    // EMAIL LOGIN / SIGNUP
+    // EMAIL LOGIN / SIGNUP (unchanged)
     // ======================
     form.addEventListener("submit", async (e) => {
         e.preventDefault();
@@ -168,20 +124,10 @@ document.addEventListener("DOMContentLoaded", async () => {
 
         try {
             if (isSignup) {
-                await createUserWithEmailAndPassword(
-                    auth,
-                    email,
-                    password
-                );
-
+                await createUserWithEmailAndPassword(auth, email, password);
                 alert("Account Created Successfully!");
             } else {
-                await signInWithEmailAndPassword(
-                    auth,
-                    email,
-                    password
-                );
-
+                await signInWithEmailAndPassword(auth, email, password);
                 alert("Login Successful!");
             }
         } catch (error) {
@@ -192,83 +138,66 @@ document.addEventListener("DOMContentLoaded", async () => {
 
     // ======================
     // GOOGLE LOGIN
+    // Uses signInWithPopup on normal browsers, signInWithRedirect
+    // when running inside the Appilix app (see explanation above code)
     // ======================
-    googleBtn.addEventListener("click", async () => {
-        try {
-            googleBtn.disabled = true;
-            googleBtn.innerHTML = `<span>Connecting...</span>`;
-
-            if (isAndroidWebView) {
-
-                // ==========================================
-                // APPILIX / ANDROID WEBVIEW
-                // ==========================================
-                // Popup authentication was giving:
-                // auth/popup-closed-by-user
-                //
-                // Therefore use full-page redirect instead.
-                console.log(
-                    "Android WebView detected - using Google redirect sign-in"
-                );
-
-                await signInWithRedirect(auth, provider);
-
-            } else {
-
-                // ==========================================
-                // NORMAL WEBSITE
-                // ==========================================
-                // Keep the existing working popup login.
-                console.log(
-                    "Normal browser detected - using Google popup sign-in"
-                );
-
-                const result = await signInWithPopup(
-                    auth,
-                    provider
-                );
-
-                console.log(
-                    "Google Sign-In successful:",
-                    result.user
-                );
-
-                console.log(
-                    "Google profile photo:",
-                    result.user.photoURL
-                );
-
-                // onAuthStateChanged() handles redirect.
-            }
-
-        } catch (error) {
-            console.error("Google Sign-In Error:", error);
-            console.error("Error code:", error.code);
-            console.error("Error message:", error.message);
-
-            alert(
-                error.message ||
-                "Google sign in failed"
-            );
-
-            googleBtn.disabled = false;
-
-            googleBtn.innerHTML = `
+    const setGoogleBtnLoading = (loading) => {
+        googleBtn.disabled = loading;
+        googleBtn.innerHTML = loading
+            ? `<span>Connecting...</span>`
+            : `
                 <img src="https://fonts.gstatic.com/s/i/productlogos/googleg/v6/24px.svg">
                 <span>Continue with Google</span>
             `;
+    };
+
+    googleBtn.addEventListener("click", async () => {
+        setGoogleBtnLoading(true);
+
+        try {
+            if (isInsideAppilixApp()) {
+                // Inside the Appilix WebView: signInWithPopup() opens the
+                // consent screen as ANOTHER embedded WebView, which Google
+                // blocks outright (disallowed_useragent). signInWithRedirect()
+                // performs a full top-level navigation instead, which is what
+                // lets Appilix's WebView hand the page off to the real system
+                // browser IF the domains below are excluded in the Appilix
+                // dashboard (see Section D). The result is picked back up by
+                // getRedirectResult() below once the user returns to this page.
+                await signInWithRedirect(auth, provider);
+                // Page is navigating away — nothing more runs here.
+                return;
+            }
+
+            // Normal desktop/mobile browser: popup works fine.
+            const result = await signInWithPopup(auth, provider);
+            console.log("Google Sign-In successful:", result.user);
+        } catch (error) {
+            console.error("Google Sign-In Error:", error);
+            alert(error.message || "Google sign in failed");
+            setGoogleBtnLoading(false);
         }
     });
+
+    // Picks up the result after a signInWithRedirect() round trip.
+    // Runs harmlessly (resolves with null) on every normal page load too.
+    getRedirectResult(auth)
+        .then((result) => {
+            if (result && result.user) {
+                console.log("Google Sign-In (redirect) successful:", result.user);
+                // onAuthStateChanged below will fire and handle routing.
+            }
+        })
+        .catch((error) => {
+            console.error("Google Sign-In (redirect) Error:", error);
+            alert(error.message || "Google sign in failed");
+        });
 
     // ======================
     // AUTH STATE LISTENER
     // ======================
     onAuthStateChanged(auth, (user) => {
         if (user) {
-
-            console.log("Authenticated user:", user);
-            console.log("Profile photo:", user.photoURL);
-
             handleRedirect(user);
         }
     });
