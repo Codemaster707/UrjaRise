@@ -997,3 +997,81 @@ footer {
     from { opacity: 0; transform: scale(0.95) translateY(20px); }
     to { opacity: 1; transform: scale(1) translateY(0); }
 }
+
+/* About Us — founder section */
+.about-section {
+    padding-top: 55px;
+    padding-bottom: 90px;
+}
+.about-card {
+    position: relative;
+    display: flex;
+    align-items: center;
+    gap: 40px;
+    overflow: hidden;
+    padding: 52px;
+    border: 1px solid rgba(255,255,255,0.08);
+    border-radius: 26px;
+    background: linear-gradient(135deg, rgba(30,33,40,0.88), rgba(18,20,25,0.82));
+    box-shadow: 0 24px 65px rgba(0,0,0,0.22);
+}
+.about-accent {
+    position: absolute;
+    left: 0;
+    top: 12%;
+    bottom: 12%;
+    width: 3px;
+    border-radius: 0 4px 4px 0;
+    background: var(--primary-grad);
+}
+.about-content { position: relative; z-index: 1; max-width: 760px; }
+.about-content h2 { margin: 10px 0 8px; }
+.about-content h3 { margin: 0 0 14px; font-size: 21px; }
+.about-name {
+    background: var(--primary-grad);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+}
+.about-content p {
+    max-width: 720px;
+    color: var(--text-gray);
+    font-size: 16px;
+    line-height: 1.85;
+    margin: 0 0 26px;
+}
+.about-link {
+    display: inline-flex;
+    align-items: center;
+    gap: 10px;
+    color: #fff;
+    text-decoration: none;
+    font-size: 14px;
+    font-weight: 700;
+    padding: 13px 20px;
+    border-radius: 12px;
+    background: var(--primary-grad);
+    transition: transform .25s ease, box-shadow .25s ease;
+    box-shadow: 0 8px 22px rgba(255,81,47,.2);
+}
+.about-link:hover { transform: translateY(-3px); box-shadow: 0 12px 28px rgba(255,81,47,.32); }
+.about-mark {
+    flex: 0 0 170px;
+    width: 170px;
+    height: 170px;
+    display: grid;
+    place-items: center;
+    border-radius: 50%;
+    color: rgba(255,255,255,.9);
+    font-size: 42px;
+    font-weight: 800;
+    letter-spacing: -3px;
+    border: 1px solid rgba(255,128,85,.35);
+    background: radial-gradient(circle, rgba(255,81,47,.18), rgba(240,152,25,.04) 68%);
+    box-shadow: 0 0 65px rgba(255,81,47,.1);
+}
+@media (max-width: 768px) {
+    .about-section { padding: 45px 6% 65px; }
+    .about-card { padding: 34px 25px; }
+    .about-mark { display: none; }
+    .about-content h2 { font-size: 34px; }
+}
